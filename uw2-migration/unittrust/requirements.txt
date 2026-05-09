@@ -1,0 +1,3 @@
+# uw2-migration/unittrust 依赖（pip install -r requirements.txt）
+pyodbc>=5.0
+pg8000>=1.31
