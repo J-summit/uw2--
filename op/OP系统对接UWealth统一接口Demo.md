@@ -1,5 +1,26 @@
 # OP 系统对接 UWealth 统一接口文档 Demo
 
+## 目录
+
+- [1. 文档说明](#1-文档说明)
+- [2. 接口地址](#2-接口地址)
+- [3. 鉴权方式](#3-鉴权方式)
+- [4. 统一请求格式](#4-统一请求格式)
+- [5. 统一响应格式](#5-统一响应格式)
+- [6. type 类型清单](#6-type-类型清单)
+- [7. 订单类型 orderType](#7-订单类型-ordertype)
+- [8. 工作流状态码](#8-工作流状态码)
+- [9. 逻辑接口一：OP 拉取待处理订单](#9-逻辑接口一op-拉取待处理订单)
+- [10. 逻辑接口二：OP 录入确认](#10-逻辑接口二op-录入确认)
+- [11. 逻辑接口三：OP NAV 确认](#11-逻辑接口三op-nav-确认)
+- [12. 逻辑接口四：OP 执行结果](#12-逻辑接口四op-执行结果)
+- [13. 逻辑接口五：OP 拒绝订单](#13-逻辑接口五op-拒绝订单)
+- [14. 逻辑接口六：OP 直接入账类交易](#14-逻辑接口六op-直接入账类交易)
+- [15. 幂等规则](#15-幂等规则)
+- [16. 错误码 Demo](#16-错误码-demo)
+- [17. 注意事项](#17-注意事项)
+- [18. 待补充清单](#18-待补充清单)
+
 ## 1. 文档说明
 
 本文档用于说明 OP 系统与 UWealth 系统之间的交易、客户资料等业务对接方式。
@@ -24,38 +45,7 @@ POST http://gateway.tongyu.tech/openapi/fund/op/commands
 
 ## 3. 鉴权方式
 
-接口通过 UWealth OpenAPI 网关进行 HMAC-SHA256 签名认证。
-
-### 3.1 请求头
-
-| Header | 必填 | 说明 |
-| --- | --- | --- |
-| `X-App-Id` | 是 | 分配给 OP 系统的应用 ID |
-| `X-Timestamp` | 是 | 请求时间戳，毫秒 |
-| `X-Sign` | 是 | HMAC-SHA256 签名 |
-| `Content-Type` | 是 | 固定为 `application/json` |
-
-### 3.2 签名内容
-
-```text
-signContent = timestamp + method + path + queryString + body
-```
-
-字段说明：
-
-| 字段 | 说明 | 示例 |
-| --- | --- | --- |
-| `timestamp` | 请求时间戳，取 `X-Timestamp` | `1744705238000` |
-| `method` | HTTP 方法 | `POST` |
-| `path` | 请求路径，不含域名 | `/openapi/fund/op/commands` |
-| `queryString` | 查询字符串，不含 `?`，无参数时为空字符串 | `page=1&pageSize=50` |
-| `body` | 原始请求体 JSON 字符串 | `{"type":"ORDER_PENDING_QUERY",...}` |
-
-签名结果：
-
-```text
-sign = Base64(HMAC-SHA256(secret, signContent))
-```
+[openapi-integration-guide.md](openapi/openapi-integration-guide.md)
 
 ## 4. 统一请求格式
 
@@ -63,7 +53,7 @@ sign = Base64(HMAC-SHA256(secret, signContent))
 {
   "type": "ORDER_ENTRY_CONFIRM",
   "version": "1.0",
-  "requestId": "OP202605070001",
+  "requestId": "550e8400-e29b-41d4-a716-446655440000",
   "timestamp": 1778121000000,
   "request": {}
 }
@@ -75,7 +65,7 @@ sign = Base64(HMAC-SHA256(secret, signContent))
 | --- | --- | --- | --- |
 | `type` | string | 是 | 业务动作类型 |
 | `version` | string | 是 | 接口版本，默认 `1.0` |
-| `requestId` | string | 是 | OP 请求唯一流水号，必须全局唯一，用于幂等和追踪 |
+| `requestId` | string | 是 | 请求去重标识，必须全局唯一，建议使用 UUID；UWealth 会根据 `requestId` 去重，若已存在相同 `requestId`，则响应跳过重复处理 |
 | `timestamp` | number | 是 | OP 请求时间戳，毫秒 |
 | `request` | object | 是 | 业务参数，根据 `type` 不同而不同 |
 
@@ -201,7 +191,7 @@ UWealth 统一使用 `WealthResult<T>` 返回。
 | `WF00000015` | Admin Reject，管理员拒绝 |
 | `WF00000019` | Partially Paid，部分付款，Debit Note 使用 |
 
-## 9. 逻辑接口一：OP 拉取待处理订单
+## 9. 逻辑接口一：OP 拉取待处理订单-通用
 
 ### 9.1 type
 
@@ -211,7 +201,7 @@ UWealth 统一使用 `WealthResult<T>` 返回。
 
 OP 系统拉取 UWealth 中等待 OP 处理的订单。UWealth 默认返回所有待 OP 拉取的订单。
 
-`orderTypes` 为可选过滤条件；如果不传、传 `null` 或传空数组，则表示拉取所有待 OP 拉取的订单。
+**`orderTypes` 为可选过滤条件；如果不传、传 `null` 或传空数组**，则表示拉取所有待 OP 拉取的订单。
 
 注意：入金 `orderType=DP` 且支付方式为 `FPX` 的订单需要排除，具体筛选字段待补充。
 
@@ -221,10 +211,11 @@ OP 系统拉取 UWealth 中等待 OP 处理的订单。UWealth 默认返回所�
 {
   "type": "ORDER_PENDING_QUERY",
   "version": "1.0",
-  "requestId": "OP202605070001",
+  "requestId": "550e8400-e29b-41d4-a716-446655440001",
   "timestamp": 1778121000000,
   "request": {
-    "orderTypes": ["B", "S", "SW", "TI", "TO", "WD", "FS"]
+    "orderTypes": ["B", "S", "SW", "TI", "TO", "WD", "FS"],
+    "pageSize":1000
   }
 }
 ```
@@ -240,20 +231,32 @@ OP 系统拉取 UWealth 中等待 OP 处理的订单。UWealth 默认返回所�
     "totalCount": 1,
     "page": [
       {
-        "uwOrderNo": "OD251230150042173191",
+        "uwOrderNo": "OD260406102449381037",
         "orderType": "B",
         "workflowCode": "WF00000004",
-        "clientCode": "C0001",
-        "fundCode": "FUND001",
-        "currency": "MYR",
-        "amount": 1000.00
+        "accountCode": "S02005WW",
+        "tradeDate": "2026-04-06 10:24:49.387",
+        "trnCode": "UP",
+        "stockCode": "F0000170SY",
+        "amount": 15000,
+        "unit": 0,
+        "salesChargeRate": 0,
+        "salesChargeAmount": 0,
+        "otherFee": 0,
+        "orderNo": "OD260406102449381037",
+        "orderCurr": "MYR",
+        "orderExRate": 1,
+        "amountSC": 15000,
+        "mode": "ONLINE",
+        "Remark": "",
+        "taxAmount": 0
       }
     ]
   }
 }
 ```
 
-## 10. 逻辑接口二：OP 录入确认
+## 10. 逻辑接口二：OP 录入确认-通用
 
 ### 10.1 type
 
@@ -269,13 +272,14 @@ OP 完成内部录入后，回写 OP 订单号。UWealth 将订单从 `WF0000000
 {
   "type": "ORDER_ENTRY_CONFIRM",
   "version": "1.0",
-  "requestId": "OP202605070002",
+  "requestId": "550e8400-e29b-41d4-a716-446655440002",
   "timestamp": 1778121300000,
   "request": {
-    "uwOrderNo": "OD251230150042173191",
-    "opOrderNo": "OPORD202605070001",
+    "uwOrderNo": "OD260406102449381037",
+    "opOrderNo": "OP260406102449381037",
     "operator": "OP001",
-    "confirmedAt": "2026-05-07T10:35:00+08:00"
+    "confirmedAt": "2026-05-07T10:35:00+08:00",
+    "success":"true"
   }
 }
 ```
@@ -300,17 +304,29 @@ OP 回写 NAV、unit、成交金额等信息。UWealth 写入交易明细，并�
 {
   "type": "ORDER_NAV_CONFIRM",
   "version": "1.0",
-  "requestId": "OP202605070003",
+  "requestId": "550e8400-e29b-41d4-a716-446655440003",
   "timestamp": 1778139000000,
   "request": {
-    "uwOrderNo": "OD251230150042173191",
-    "opOrderNo": "OPORD202605070001",
-    "nav": 1.2345,
-    "unit": 810.0446,
-    "grossAmount": 1000.00,
-    "netAmount": 1000.00,
-    "priceDate": "2026-05-07",
-    "currency": "MYR"
+    "opPkId": "UTF*260400402",
+    "uwOrderNo": "OD260406102449381037",
+    "clientCode": "S02005WW",
+    "unit": 21346.24,
+    "nav": 0.7027,
+    "branch": "S51",
+    "grossAmount": -15000,
+    "netAmount": -15000,
+    "mGrossAmount": -15000,
+    "mNetAmount": -15000,
+    "saleChargeAmount": 0,
+    "saleChargeRate": 0,
+    "currency": "MYR",
+    "currencyRate": 1,
+    "fundId": "F0000170SY",
+    "fundAmount": -15000,
+    "fundMAmount": -15000,
+    "orderType": "B",
+    "status": 1,
+    "ipAddress": "169.254.1.2"
   }
 }
 ```
@@ -335,7 +351,7 @@ OP 完成结算或执行后，回写最终执行结果。成功时 UWealth 将�
 {
   "type": "ORDER_EXECUTION_RESULT",
   "version": "1.0",
-  "requestId": "OP202605070004",
+  "requestId": "550e8400-e29b-41d4-a716-446655440004",
   "timestamp": 1778205600000,
   "request": {
     "uwOrderNo": "OD251230150042173191",
@@ -367,7 +383,7 @@ OP 拒绝订单，UWealth 根据业务规则将订单更新为拒绝状态。
 {
   "type": "ORDER_REJECT",
   "version": "1.0",
-  "requestId": "OP202605070005",
+  "requestId": "550e8400-e29b-41d4-a716-446655440005",
   "timestamp": 1778122800000,
   "request": {
     "uwOrderNo": "OD251230150042173191",
@@ -403,7 +419,7 @@ OP 拒绝订单，UWealth 根据业务规则将订单更新为拒绝状态。
 {
   "type": "TRUST_DIRECT_BOOKING",
   "version": "1.0",
-  "requestId": "OP202605070006",
+  "requestId": "550e8400-e29b-41d4-a716-446655440006",
   "timestamp": 1778126400000,
   "request": {
     "orderType": "DV",
@@ -423,12 +439,12 @@ UWealth 根据以下字段进行幂等判断：
 
 | 字段 | 说明 |
 | --- | --- |
-| `requestId` | OP 请求唯一流水号 |
+| `requestId` | 请求去重标识，必须全局唯一，建议使用 UUID |
 | `type` | 业务动作 |
 | `uwOrderNo` | UWealth 订单号，存在时参与校验 |
 | `opOrderNo` | OP 订单号，存在时参与校验 |
 
-同一个 `requestId` 重复提交时，UWealth 应返回第一次处理结果。
+UWealth 会根据 `requestId` 去重。若已存在相同 `requestId`，系统会响应跳过重复处理，不再执行后续业务动作。
 
 ## 16. 错误码 Demo
 
