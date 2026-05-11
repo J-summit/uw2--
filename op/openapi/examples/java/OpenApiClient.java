@@ -157,14 +157,14 @@ public class OpenApiClient {
         // Example 2: GET request with query parameters (using Map for proper URL encoding)
         System.out.println("\n=== GET with Parameters Example ===");
         Map<String, String> params = new HashMap<>();
-        params.put("category", "混合型");
+        params.put("category", "Mixed");
         params.put("page", "1");
         String result2 = client.get("/fund/selector/list", params);
         System.out.println(result2);
 
         // Example 3: POST request
         System.out.println("\n=== POST Request Example ===");
-        String requestBody = "{\"name\":\"Test Fund\",\"category\":\"混合型\"}";
+        String requestBody = "{\"name\":\"Test Fund\",\"category\":\"Mixed\"}";
         String result3 = client.post("/fund/add", requestBody);
         System.out.println(result3);
     }

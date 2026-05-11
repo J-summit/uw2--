@@ -151,10 +151,10 @@ echo $result . "\n";
 
 // Example 2: GET request with query parameters
 echo "\n=== GET with Parameters Example ===\n";
-$result = $client->get('/fund/selector/list', ['category' => '混合型', 'page' => 1]);
+$result = $client->get('/fund/selector/list', ['category' => 'Mixed', 'page' => 1]);
 echo $result . "\n";
 
 // Example 3: POST request
 echo "\n=== POST Request Example ===\n";
-$result = $client->post('/fund/add', ['name' => 'Test Fund', 'category' => '混合型']);
+$result = $client->post('/fund/add', ['name' => 'Test Fund', 'category' => 'Mixed']);
 echo $result . "\n";

@@ -144,7 +144,7 @@ public class Program
         Console.WriteLine("\n=== GET with Parameters Example ===");
         var queryParams = new Dictionary<string, string>
         {
-            { "category", "混合型" },
+            { "category", "Mixed" },
             { "page", "1" }
         };
         var result2 = await client.GetAsync("/fund/selector/list", queryParams);
@@ -152,7 +152,7 @@ public class Program
 
         // Example 3: POST request
         Console.WriteLine("\n=== POST Request Example ===");
-        var requestData = new { name = "Test Fund", category = "混合型" };
+        var requestData = new { name = "Test Fund", category = "Mixed" };
         var result3 = await client.PostAsync("/fund/add", requestData);
         Console.WriteLine(result3);
     }

@@ -34,7 +34,7 @@ signContent = timestamp + method + path + queryString + body
 | timestamp | Request timestamp (milliseconds) | `1744705238000` |
 | method | HTTP method | `GET`, `POST` |
 | path | Request path (without domain) | `/openapi/fund/selector/list` |
-| queryString | Query string (without `?`) | `category=混合型&page=1` |
+| queryString | Query string (without `?`) | `category=Mixed&page=1` |
 | body | Request body (empty string if none) | `{"name":"Test"}` |
 
 ### Signature Calculation
