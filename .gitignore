@@ -4,6 +4,7 @@
 __pycache__/
 *.py[cod]
 *.pyo
+uw2-migration/unittrust/riskprofile/json_export/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
