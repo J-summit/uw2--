@@ -10,3 +10,6 @@ uw2-migration/unittrust/riskprofile/json_export/
 .ruff_cache/
 .DS_Store
 Thumbs.db
+
+# Local git worktrees
+.worktrees/
