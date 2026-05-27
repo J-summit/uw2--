@@ -18,7 +18,7 @@ import re
 import sys
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 try:
     import pyodbc
@@ -195,24 +195,6 @@ IFA_ORG_COLUMNS = [
 ]
 
 
-BRANCH_ORG_COLUMNS = [
-    "name",
-    "code",
-    "type",
-    "parent_id",
-    "root_id",
-    "path",
-    "source",
-    "source_id",
-    "created_by",
-    "created_at",
-    "created_ip",
-    "updated_by",
-    "updated_at",
-    "updated_ip",
-]
-
-
 BASE_BRANCH_COLUMNS = [
     "code",
     "ifa_code",
@@ -321,30 +303,22 @@ def map_ifa(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return mapped
 
 
-def map_branch_organization(row: Dict[str, Any], ifa_codes: Iterable[str]) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+def validate_branch(row: Dict[str, Any], ifa_codes: Sequence[str]) -> Optional[Dict[str, Any]]:
     ifa_code = clean_text(row.get("ifa_code"))
     code = clean_text(row.get("Code"))
     name = clean_text(row.get("Name"))
     if not code or not name:
-        return None, {"reason": "required_field_missing", "branch_code": code, "ifa_code": ifa_code}
-    if not ifa_code or ifa_code not in set(ifa_codes):
-        return None, {"reason": "ifa_not_found", "branch_code": code, "ifa_code": ifa_code}
-    mapped = {
-        "code": code,
-        "name": name,
-        "type": "BRANCH",
-        "parent_code": ifa_code,
-        "source": "LEGACY_MSTBRANCH",
-        "source_id": f"MstBranch:{code}",
-    }
-    mapped.update(audit_fields(row))
-    return mapped, None
+        return {"reason": "required_field_missing", "branch_code": code, "ifa_code": ifa_code}
+    if not ifa_code or ifa_code not in ifa_codes:
+        return {"reason": "ifa_not_found", "branch_code": code, "ifa_code": ifa_code}
+    return None
 
 
 def map_base_branch(row: Dict[str, Any]) -> Dict[str, Any]:
     mapped = {
         "code": clean_text(row.get("Code")),
         "ifa_code": clean_text(row.get("ifa_code")),
+        "organization_id": None,
         "name": clean_text(row.get("Name")),
         "old_name": clean_text(row.get("OldName")),
         "addr1": clean_text(row.get("Addr1")),
@@ -372,7 +346,6 @@ def build_export_payload(
     batch_id: str,
 ) -> Dict[str, Any]:
     ifa_organizations: List[Dict[str, Any]] = []
-    branch_organizations: List[Dict[str, Any]] = []
     base_branches: List[Dict[str, Any]] = []
     rejects: List[Dict[str, Any]] = []
 
@@ -389,13 +362,12 @@ def build_export_payload(
             continue
         ifa_organizations.append(mapped)
 
-    ifa_codes = {row["code"] for row in ifa_organizations}
+    ifa_codes = [row["code"] for row in ifa_organizations]
     for row in branches:
-        branch_org, reject = map_branch_organization(row, ifa_codes)
+        reject = validate_branch(row, ifa_codes)
         if reject is not None:
             rejects.append(reject)
             continue
-        branch_organizations.append(branch_org)
         base_branches.append(map_base_branch(row))
 
     manifest = {
@@ -411,7 +383,6 @@ def build_export_payload(
     return {
         "manifest": manifest,
         "ifa_organizations": ifa_organizations,
-        "branch_organizations": branch_organizations,
         "base_branches": base_branches,
         "rejects": rejects,
     }
@@ -545,7 +516,6 @@ def export_command(args: argparse.Namespace) -> str:
     payload = build_export_payload(ifas, branches, batch_id)
     save_json(os.path.join(output_dir, "manifest.json"), payload["manifest"])
     save_json(os.path.join(output_dir, "base_organization_ifa.json"), payload["ifa_organizations"])
-    save_json(os.path.join(output_dir, "base_organization_branch.json"), payload["branch_organizations"])
     save_json(os.path.join(output_dir, "base_branch.json"), payload["base_branches"])
     save_json(os.path.join(output_dir, "rejects.json"), payload["rejects"])
     print(f"Exported batch to {output_dir}")
@@ -630,77 +600,10 @@ def upsert_ifa_organizations(cur, schema: str, rows: Sequence[Dict[str, Any]]) -
     return ids
 
 
-def fetch_org_lineage(cur, schema: str, org_id: int) -> Tuple[int, str]:
-    org_table = table_name(schema, "base_organization")
-    cur.execute(f"SELECT COALESCE(root_id, id), COALESCE(NULLIF(path, ''), '/' || id::text) FROM {org_table} WHERE id = %s", (org_id,))
-    row = cur.fetchone()
-    if not row:
-        raise RuntimeError(f"Organization id not found: {org_id}")
-    return row[0], row[1]
-
-
-def upsert_branch_organizations(
-    cur,
-    schema: str,
-    rows: Sequence[Dict[str, Any]],
-    ifa_ids: Dict[str, int],
-) -> Dict[str, int]:
-    org_table = table_name(schema, "base_organization")
-    ids: Dict[str, int] = {}
-    for row in rows:
-        parent_code = row["parent_code"]
-        parent_id = ifa_ids.get(parent_code)
-        if parent_id is None:
-            raise RuntimeError(f"Missing imported IFA organization for {parent_code}")
-        parent_root_id, parent_path = fetch_org_lineage(cur, schema, parent_id)
-        existing = select_one(
-            cur,
-            f"SELECT id FROM {org_table} WHERE type = %s AND code = %s AND parent_id = %s LIMIT 1",
-            ("BRANCH", row["code"], parent_id),
-        )
-        values = [
-            row["name"],
-            row["code"],
-            row["type"],
-            parent_id,
-            parent_root_id,
-            None,
-            row.get("source"),
-            row.get("source_id"),
-            row.get("created_by"),
-            row.get("created_at"),
-            row.get("created_ip"),
-            row.get("updated_by"),
-            row.get("updated_at"),
-            row.get("updated_ip"),
-        ]
-        if existing:
-            org_id = existing[0]
-            values[5] = f"{parent_path}/{org_id}"
-            assignments = ", ".join(f"{quote_ident(column)} = %s" for column in BRANCH_ORG_COLUMNS)
-            cur.execute(f"UPDATE {org_table} SET {assignments} WHERE id = %s", values + [org_id])
-        else:
-            columns = ", ".join(quote_ident(column) for column in BRANCH_ORG_COLUMNS)
-            placeholders = ", ".join(["%s"] * len(BRANCH_ORG_COLUMNS))
-            values[5] = ""
-            cur.execute(
-                f"INSERT INTO {org_table} ({columns}) VALUES ({placeholders}) RETURNING id",
-                values,
-            )
-            org_id = cur.fetchone()[0]
-            cur.execute(
-                f"UPDATE {org_table} SET path = %s WHERE id = %s",
-                (f"{parent_path}/{org_id}", org_id),
-            )
-        ids[row["code"]] = org_id
-    return ids
-
-
 def upsert_base_branches(
     cur,
     schema: str,
     rows: Sequence[Dict[str, Any]],
-    branch_org_ids: Dict[str, int],
 ) -> int:
     branch_table = table_name(schema, "base_branch")
     columns = ", ".join(quote_ident(column) for column in BASE_BRANCH_COLUMNS)
@@ -713,11 +616,7 @@ def upsert_base_branches(
     ON CONFLICT (code) DO UPDATE SET {assignments}
     """
     for row in rows:
-        organization_id = branch_org_ids.get(row["code"])
-        if organization_id is None:
-            raise RuntimeError(f"Missing branch organization for {row['code']}")
         values = [row.get(column) for column in BASE_BRANCH_COLUMNS]
-        values[BASE_BRANCH_COLUMNS.index("organization_id")] = organization_id
         cur.execute(sql, values)
     return len(rows)
 
@@ -728,7 +627,6 @@ def import_command(args: argparse.Namespace) -> None:
         raise ValueError("--input-dir is required for import")
 
     ifa_organizations = load_json(os.path.join(input_dir, "base_organization_ifa.json"))
-    branch_organizations = load_json(os.path.join(input_dir, "base_organization_branch.json"))
     base_branches = load_json(os.path.join(input_dir, "base_branch.json"))
     manifest = load_json(os.path.join(input_dir, "manifest.json"))
 
@@ -739,10 +637,8 @@ def import_command(args: argparse.Namespace) -> None:
         cur = conn.cursor()
         print("Upserting IFA organizations ...")
         ifa_ids = upsert_ifa_organizations(cur, schema, ifa_organizations)
-        print("Upserting Branch organizations ...")
-        branch_org_ids = upsert_branch_organizations(cur, schema, branch_organizations, ifa_ids)
         print("Upserting base_branch ...")
-        inserted_branches = upsert_base_branches(cur, schema, base_branches, branch_org_ids)
+        inserted_branches = upsert_base_branches(cur, schema, base_branches)
         conn.commit()
     except Exception:
         conn.rollback()
@@ -755,7 +651,6 @@ def import_command(args: argparse.Namespace) -> None:
             {
                 "batch_id": manifest.get("batch_id"),
                 "upserted_ifas": len(ifa_ids),
-                "upserted_branch_organizations": len(branch_org_ids),
                 "upserted_base_branches": inserted_branches,
             },
             ensure_ascii=False,
@@ -808,19 +703,15 @@ def verify_command(args: argparse.Namespace) -> None:
             f"""
             SELECT COUNT(*)
               FROM {branch_table} b
-              LEFT JOIN {org_table} branch_org
-                ON branch_org.id = b.organization_id
-               AND branch_org.type = 'BRANCH'
               LEFT JOIN {org_table} ifa_org
-                ON ifa_org.id = branch_org.parent_id
-               AND ifa_org.type = 'IFA'
+                ON ifa_org.type = 'IFA'
                AND ifa_org.code = b.ifa_code
-             WHERE (branch_org.id IS NULL OR ifa_org.id IS NULL)
+             WHERE ifa_org.id IS NULL
                {link_filter}
             """,
             values,
         )
-        checks["branches_without_valid_organization"] = cur.fetchone()[0]
+        checks["branches_without_ifa_organization"] = cur.fetchone()[0]
     finally:
         conn.close()
 
@@ -829,8 +720,8 @@ def verify_command(args: argparse.Namespace) -> None:
         raise RuntimeError("Verification failed: not all expected IFA organizations are present")
     if checks.get("expected_branches_present") != checks.get("expected_branches", checks.get("expected_branches_present")):
         raise RuntimeError("Verification failed: not all expected branches are present")
-    if checks["branches_without_valid_organization"]:
-        raise RuntimeError("Verification failed: branch organization links are incomplete")
+    if checks["branches_without_ifa_organization"]:
+        raise RuntimeError("Verification failed: branch IFA organization links are incomplete")
 
 
 def migrate_command(args: argparse.Namespace) -> None:

@@ -1,9 +1,24 @@
 import unittest
 import tempfile
+import json
 from io import StringIO
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
-from ifa_branch_migration import build_export_payload, main, parse_command_args
+from ifa_branch_migration import build_export_payload, import_command, main, parse_command_args
+
+
+class FakeConnection:
+    def cursor(self):
+        return Mock()
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
 
 
 class IfaBranchMigrationTests(unittest.TestCase):
@@ -92,9 +107,9 @@ class IfaBranchMigrationTests(unittest.TestCase):
                 "updated_ip": "127.0.0.1",
             },
         )
-        self.assertEqual(payload["branch_organizations"][0]["parent_code"], "UOBKH")
-        self.assertEqual(payload["branch_organizations"][0]["source_id"], "MstBranch:001")
+        self.assertNotIn("branch_organizations", payload)
         self.assertEqual(payload["base_branches"][0]["code"], "001")
+        self.assertIsNone(payload["base_branches"][0]["organization_id"])
         self.assertEqual(payload["base_branches"][0]["post_code"], "81200")
         self.assertFalse(payload["base_branches"][0]["virtual"])
         self.assertIsNone(payload["base_branches"][0]["vir_code"])
@@ -191,6 +206,28 @@ class IfaBranchMigrationTests(unittest.TestCase):
         self.assertEqual(import_command.call_count, 1)
         self.assertEqual(import_command.call_args.args[0].command, "import")
         self.assertEqual(import_command.call_args.args[0].input_dir, r"C:\tmp\ifa_batch")
+
+    def test_import_does_not_require_branch_organization_export_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            files = {
+                "manifest.json": {"batch_id": "ifa_test"},
+                "base_organization_ifa.json": [{"code": "UOBKH"}],
+                "base_branch.json": [{"code": "001", "ifa_code": "UOBKH"}],
+            }
+            for name, data in files.items():
+                with open(f"{tmpdir}\\{name}", "w", encoding="utf-8") as handle:
+                    json.dump(data, handle)
+
+            args = parse_command_args("import", ["--input-dir", tmpdir])
+            with patch("ifa_branch_migration.pg_connection", return_value=FakeConnection()), patch(
+                "ifa_branch_migration.upsert_ifa_organizations", return_value={"UOBKH": 1}
+            ) as upsert_ifas, patch(
+                "ifa_branch_migration.upsert_base_branches", return_value=1
+            ) as upsert_branches, patch("sys.stdout", new_callable=StringIO):
+                import_command(args)
+
+        self.assertEqual(upsert_ifas.call_count, 1)
+        self.assertEqual(upsert_branches.call_count, 1)
 
 
 if __name__ == "__main__":
