@@ -48,7 +48,7 @@ MSSQL_DEFAULTS = {
 PG_DEFAULTS = {
     "host": "localhost",
     "port": 15432,
-    "database": "uw",
+    "database": "wm",
     "user": "wealth",
     "password": "wealth123",
     "schema": "auth_service",

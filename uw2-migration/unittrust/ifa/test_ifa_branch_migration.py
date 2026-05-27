@@ -2,7 +2,7 @@ import unittest
 from io import StringIO
 from unittest.mock import patch
 
-from ifa_branch_migration import build_export_payload, main
+from ifa_branch_migration import build_export_payload, main, parse_command_args
 
 
 class IfaBranchMigrationTests(unittest.TestCase):
@@ -116,6 +116,11 @@ class IfaBranchMigrationTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         self.assertIn("Choose command", stdout.getvalue())
+
+    def test_parser_defaults_to_local_wealth_database(self):
+        args = parse_command_args("migrate", [])
+
+        self.assertEqual(args.pg_database, "wm")
 
     def test_interactive_import_prompts_for_input_dir_and_runs_import(self):
         answers = iter(["3", r"C:\tmp\ifa_batch", "y"])
