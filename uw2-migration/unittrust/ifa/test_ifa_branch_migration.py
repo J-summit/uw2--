@@ -1,6 +1,8 @@
 import unittest
+from io import StringIO
+from unittest.mock import patch
 
-from ifa_branch_migration import build_export_payload
+from ifa_branch_migration import build_export_payload, main
 
 
 class IfaBranchMigrationTests(unittest.TestCase):
@@ -107,6 +109,25 @@ class IfaBranchMigrationTests(unittest.TestCase):
         self.assertEqual(payload["manifest"]["rejected_branches"], 1)
         self.assertEqual(payload["rejects"][0]["reason"], "ifa_not_found")
         self.assertEqual(payload["rejects"][0]["branch_code"], "999")
+
+    def test_main_without_arguments_enters_interactive_mode(self):
+        with patch("builtins.input", return_value="q"), patch("sys.stdout", new_callable=StringIO) as stdout:
+            result = main([])
+
+        self.assertEqual(result, 0)
+        self.assertIn("Choose command", stdout.getvalue())
+
+    def test_interactive_import_prompts_for_input_dir_and_runs_import(self):
+        answers = iter(["3", r"C:\tmp\ifa_batch", "y"])
+        with patch("builtins.input", side_effect=lambda _: next(answers)), patch(
+            "ifa_branch_migration.import_command"
+        ) as import_command, patch("sys.stdout", new_callable=StringIO):
+            result = main([])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(import_command.call_count, 1)
+        self.assertEqual(import_command.call_args.args[0].command, "import")
+        self.assertEqual(import_command.call_args.args[0].input_dir, r"C:\tmp\ifa_batch")
 
 
 if __name__ == "__main__":

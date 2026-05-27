@@ -55,6 +55,18 @@ PG_DEFAULTS = {
 }
 
 
+INTERACTIVE_COMMANDS = {
+    "1": "migrate",
+    "2": "export",
+    "3": "import",
+    "4": "verify",
+    "migrate": "migrate",
+    "export": "export",
+    "import": "import",
+    "verify": "verify",
+}
+
+
 IFA_SOURCE_COLUMNS = [
     "ifa_code",
     "ifa_name",
@@ -815,9 +827,77 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def prompt_yes_no(message: str, default: bool = False) -> bool:
+    suffix = "[Y/n]" if default else "[y/N]"
+    answer = input(f"{message} {suffix}: ").strip().lower()
+    if not answer:
+        return default
+    return answer in {"y", "yes"}
+
+
+def print_interactive_summary(args: argparse.Namespace) -> None:
+    print("")
+    print(f"Command: {args.command}")
+    if args.command in {"export", "migrate"}:
+        print(f"MSSQL: {args.mssql_server}/{args.mssql_database} user={args.mssql_user}")
+    if args.command in {"import", "verify", "migrate"}:
+        print(
+            f"PostgreSQL: {args.pg_host}:{args.pg_port}/{args.pg_database} "
+            f"schema={args.pg_schema} user={args.pg_user}"
+        )
+    if args.output_dir:
+        print(f"Output dir: {args.output_dir}")
+    if args.input_dir:
+        print(f"Input dir: {args.input_dir}")
+    print("")
+
+
+def parse_command_args(command: str, extra_args: Sequence[str]) -> argparse.Namespace:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    return parser.parse_args([command] + list(extra_args))
+
+
+def interactive_main() -> int:
+    print("Choose command:")
+    print("1) migrate  Export from MSSQL, import to PostgreSQL, then verify")
+    print("2) export   Export MSSQL data to JSON only")
+    print("3) import   Import JSON export into PostgreSQL")
+    print("4) verify   Verify imported data")
+    print("q) quit")
+    choice = input("Select [1]: ").strip().lower() or "1"
+    if choice in {"q", "quit", "exit"}:
+        print("Bye.")
+        return 0
+
+    command = INTERACTIVE_COMMANDS.get(choice)
+    if not command:
+        print(f"Unknown choice: {choice}")
+        return 2
+
+    extra_args: List[str] = []
+    if command in {"export", "migrate"}:
+        output_dir = input("Output dir [auto]: ").strip()
+        if output_dir:
+            extra_args.extend(["--output-dir", output_dir])
+
+    if command in {"import", "verify"}:
+        input_dir = input("Input dir: ").strip()
+        if not input_dir:
+            print("Input dir is required for this command.")
+            return 2
+        extra_args.extend(["--input-dir", input_dir])
+
+    args = parse_command_args(command, extra_args)
+    print_interactive_summary(args)
+    if not prompt_yes_no("Continue", default=False):
+        print("Cancelled.")
+        return 0
+
+    run_command(args)
+    return 0
+
+
+def run_command(args: argparse.Namespace) -> None:
     if args.command == "export":
         export_command(args)
     elif args.command == "import":
@@ -827,7 +907,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     elif args.command == "migrate":
         migrate_command(args)
     else:  # pragma: no cover
-        parser.error(f"Unknown command: {args.command}")
+        raise ValueError(f"Unknown command: {args.command}")
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        return interactive_main()
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    run_command(args)
     return 0
 
 
