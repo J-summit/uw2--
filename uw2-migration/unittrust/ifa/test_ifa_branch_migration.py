@@ -1,4 +1,5 @@
 import unittest
+import tempfile
 from io import StringIO
 from unittest.mock import patch
 
@@ -121,6 +122,63 @@ class IfaBranchMigrationTests(unittest.TestCase):
         args = parse_command_args("migrate", [])
 
         self.assertEqual(args.pg_database, "wm")
+
+    def test_parser_reads_database_defaults_from_db_ini(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_ini = f"{tmpdir}\\db.ini"
+            with open(db_ini, "w", encoding="utf-8") as handle:
+                handle.write(
+                    "\n".join(
+                        [
+                            "[mssql]",
+                            "server = legacy-host,1433",
+                            "database = LegacyUnitTrust",
+                            "user = legacy_user",
+                            "password = legacy_password",
+                            "driver = ODBC Driver 17 for SQL Server",
+                            "encrypt = yes",
+                            "trust_server_certificate = no",
+                            "",
+                            "[postgresql]",
+                            "host = pg-host",
+                            "port = 25432",
+                            "database = target_db",
+                            "user = pg_user",
+                            "password = pg_password",
+                            "schema = target_schema",
+                        ]
+                    )
+                )
+
+            args = parse_command_args("migrate", [], config_path=db_ini)
+
+        self.assertEqual(args.mssql_server, "legacy-host,1433")
+        self.assertEqual(args.mssql_database, "LegacyUnitTrust")
+        self.assertEqual(args.mssql_user, "legacy_user")
+        self.assertEqual(args.mssql_password, "legacy_password")
+        self.assertEqual(args.mssql_driver, "ODBC Driver 17 for SQL Server")
+        self.assertEqual(args.mssql_encrypt, "yes")
+        self.assertEqual(args.mssql_trust_server_certificate, "no")
+        self.assertEqual(args.pg_host, "pg-host")
+        self.assertEqual(args.pg_port, 25432)
+        self.assertEqual(args.pg_database, "target_db")
+        self.assertEqual(args.pg_user, "pg_user")
+        self.assertEqual(args.pg_password, "pg_password")
+        self.assertEqual(args.pg_schema, "target_schema")
+
+    def test_command_line_arguments_override_db_ini_defaults(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_ini = f"{tmpdir}\\db.ini"
+            with open(db_ini, "w", encoding="utf-8") as handle:
+                handle.write("[postgresql]\ndatabase = target_db\n")
+
+            args = parse_command_args(
+                "migrate",
+                ["--pg-database", "override_db"],
+                config_path=db_ini,
+            )
+
+        self.assertEqual(args.pg_database, "override_db")
 
     def test_interactive_import_prompts_for_input_dir_and_runs_import(self):
         answers = iter(["3", r"C:\tmp\ifa_batch", "y"])

@@ -5,12 +5,13 @@ Default source:
   MSSQL 10.1.6.177:1433 / UnitTrust / sa / Tongyu@123456
 
 Default target:
-  PostgreSQL localhost:15432 / uw / wealth / wealth123 / auth_service
+  PostgreSQL localhost:15432 / wm / wealth / wealth123 / auth_service
 """
 
 from __future__ import annotations
 
 import argparse
+import configparser
 import json
 import os
 import re
@@ -32,6 +33,7 @@ except ImportError:  # pragma: no cover - exercised only when import is used
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_OUTPUT_ROOT = os.path.join(SCRIPT_DIR, "json_export")
+DEFAULT_DB_CONFIG_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, "db.ini"))
 
 
 MSSQL_DEFAULTS = {
@@ -53,6 +55,48 @@ PG_DEFAULTS = {
     "password": "wealth123",
     "schema": "auth_service",
 }
+
+
+def load_db_defaults(config_path: str = DEFAULT_DB_CONFIG_PATH) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    mssql_defaults = dict(MSSQL_DEFAULTS)
+    pg_defaults = dict(PG_DEFAULTS)
+    if not os.path.exists(config_path):
+        return mssql_defaults, pg_defaults
+
+    config = configparser.ConfigParser()
+    config.read(config_path, encoding="utf-8")
+    if config.has_section("mssql"):
+        section = config["mssql"]
+        mssql_defaults.update(
+            {
+                "server": section.get("server", mssql_defaults["server"]),
+                "database": section.get("database", mssql_defaults["database"]),
+                "username": section.get(
+                    "username",
+                    section.get("user", mssql_defaults["username"]),
+                ),
+                "password": section.get("password", mssql_defaults["password"]),
+                "driver": section.get("driver", mssql_defaults["driver"]),
+                "encrypt": section.get("encrypt", mssql_defaults["encrypt"]),
+                "trust_server_certificate": section.get(
+                    "trust_server_certificate",
+                    mssql_defaults["trust_server_certificate"],
+                ),
+            }
+        )
+    if config.has_section("postgresql"):
+        section = config["postgresql"]
+        pg_defaults.update(
+            {
+                "host": section.get("host", pg_defaults["host"]),
+                "port": section.getint("port", pg_defaults["port"]),
+                "database": section.get("database", pg_defaults["database"]),
+                "user": section.get("user", pg_defaults["user"]),
+                "password": section.get("password", pg_defaults["password"]),
+                "schema": section.get("schema", pg_defaults["schema"]),
+            }
+        )
+    return mssql_defaults, pg_defaults
 
 
 INTERACTIVE_COMMANDS = {
@@ -796,34 +840,39 @@ def migrate_command(args: argparse.Namespace) -> None:
     verify_command(args)
 
 
-def add_common_args(parser: argparse.ArgumentParser) -> None:
+def add_common_args(
+    parser: argparse.ArgumentParser,
+    mssql_defaults: Dict[str, Any],
+    pg_defaults: Dict[str, Any],
+) -> None:
     parser.add_argument("--batch-id")
     parser.add_argument("--output-dir")
     parser.add_argument("--input-dir")
-    parser.add_argument("--mssql-server", default=MSSQL_DEFAULTS["server"])
-    parser.add_argument("--mssql-database", default=MSSQL_DEFAULTS["database"])
-    parser.add_argument("--mssql-user", default=MSSQL_DEFAULTS["username"])
-    parser.add_argument("--mssql-password", default=MSSQL_DEFAULTS["password"])
-    parser.add_argument("--mssql-driver", default=MSSQL_DEFAULTS["driver"])
-    parser.add_argument("--mssql-encrypt", default=MSSQL_DEFAULTS["encrypt"])
+    parser.add_argument("--mssql-server", default=mssql_defaults["server"])
+    parser.add_argument("--mssql-database", default=mssql_defaults["database"])
+    parser.add_argument("--mssql-user", default=mssql_defaults["username"])
+    parser.add_argument("--mssql-password", default=mssql_defaults["password"])
+    parser.add_argument("--mssql-driver", default=mssql_defaults["driver"])
+    parser.add_argument("--mssql-encrypt", default=mssql_defaults["encrypt"])
     parser.add_argument(
         "--mssql-trust-server-certificate",
-        default=MSSQL_DEFAULTS["trust_server_certificate"],
+        default=mssql_defaults["trust_server_certificate"],
     )
-    parser.add_argument("--pg-host", default=PG_DEFAULTS["host"])
-    parser.add_argument("--pg-port", type=int, default=PG_DEFAULTS["port"])
-    parser.add_argument("--pg-database", default=PG_DEFAULTS["database"])
-    parser.add_argument("--pg-user", default=PG_DEFAULTS["user"])
-    parser.add_argument("--pg-password", default=PG_DEFAULTS["password"])
-    parser.add_argument("--pg-schema", default=PG_DEFAULTS["schema"])
+    parser.add_argument("--pg-host", default=pg_defaults["host"])
+    parser.add_argument("--pg-port", type=int, default=pg_defaults["port"])
+    parser.add_argument("--pg-database", default=pg_defaults["database"])
+    parser.add_argument("--pg-user", default=pg_defaults["user"])
+    parser.add_argument("--pg-password", default=pg_defaults["password"])
+    parser.add_argument("--pg-schema", default=pg_defaults["schema"])
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser(config_path: str = DEFAULT_DB_CONFIG_PATH) -> argparse.ArgumentParser:
+    mssql_defaults, pg_defaults = load_db_defaults(config_path)
     parser = argparse.ArgumentParser(description="Migrate legacy IFA and Branch master data.")
     subparsers = parser.add_subparsers(dest="command", required=True)
     for name in ("export", "import", "verify", "migrate"):
         sub = subparsers.add_parser(name)
-        add_common_args(sub)
+        add_common_args(sub, mssql_defaults, pg_defaults)
     return parser
 
 
@@ -852,8 +901,12 @@ def print_interactive_summary(args: argparse.Namespace) -> None:
     print("")
 
 
-def parse_command_args(command: str, extra_args: Sequence[str]) -> argparse.Namespace:
-    parser = build_parser()
+def parse_command_args(
+    command: str,
+    extra_args: Sequence[str],
+    config_path: str = DEFAULT_DB_CONFIG_PATH,
+) -> argparse.Namespace:
+    parser = build_parser(config_path)
     return parser.parse_args([command] + list(extra_args))
 
 
