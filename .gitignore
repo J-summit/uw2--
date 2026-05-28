@@ -13,3 +13,4 @@ Thumbs.db
 
 # Local git worktrees
 .worktrees/
+**/json_export/
