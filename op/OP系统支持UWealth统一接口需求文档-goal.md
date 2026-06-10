@@ -434,7 +434,7 @@ git diff --check
 ## 风险与待确认项
 
 - `WF00000005` 是否为 `ORDER_ENTRY_CONFIRM` 后强制状态，当前由 `uwealth.entry-confirm-advance-workflow` 配置控制，默认 `true`。
-- `COMPLETED` 与流程图中的 `ORDER_EXECUTION_RESULT` 是否最终统一命名为 `COMPLETED`。
+- 首期最终完成命令主名称已按当前 UWealth 实现统一为 `COMPLETED`；旧 `ORDER_EXECUTION_RESULT` 是否作为兼容别名需联调确认。
 - DP / WD 是否必须经过 `ORDER_ENTRY_CONFIRM`，当前实现允许录入确认后直接完成。
 - FPX Deposit 的最终判断字段和 payment method 映射仍需 UWealth / OP 业务确认。
 - `ORDER_REJECT` 对不同 `orderType` / `workflowCode` 的允许状态仍需最终确认。

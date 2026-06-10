@@ -60,7 +60,7 @@ flowchart LR
     ROUTER -->|"ORDER_ENTRY_CONFIRM"| ACK
     ROUTER -->|"ORDER_NAV_CONFIRM / buy"| BUY
     ROUTER -->|"ORDER_NAV_CONFIRM / sell, force sell"| SELL
-    ROUTER -->|"ORDER_EXECUTION_RESULT / ORDER_REJECT"| WF
+    ROUTER -->|"COMPLETED / ORDER_REJECT"| WF
     ROUTER -->|"TRUST_DIRECT_BOOKING"| FROMOP
 
     PULL --> MODEL
@@ -128,7 +128,7 @@ sequenceDiagram
 
     rect rgb(245, 245, 245)
         Note over OP,UW: 最终执行结果
-        OP->>UW: ORDER_EXECUTION_RESULT<br/>SUCCESS / FAILED / settlementDate
+        OP->>UW: COMPLETED<br/>SUCCESS / FAILED / settlementDate
         alt success
             UW->>DB: EXEC usp_UpdateWorkflow_OP<br/>workflow_code = WF00000010
             DB->>DB: UPDATE TrnOrder.workflow_code = WF00000010
@@ -147,7 +147,7 @@ sequenceDiagram
 | 客户确认后待 OP 处理 | `ORDER_PENDING_QUERY` | 老系统待新增 pull；历史上也存在 UW 主动调用 OP `TransactionUnitTrust` | `TrnOrder.workflow_code = WF00000004` |
 | OP 录入确认 | `ORDER_ENTRY_CONFIRM` | 老系统待新增 ACK；当前可只写 `op_order_no`，是否写 `WF00000005` 需业务确认 | `TrnOrder.op_order_no`，可选 `TrnWorkFlowHistory(WF00000005)` |
 | OP NAV / unit 确认 | `ORDER_NAV_CONFIRM` | `/OP/update_buy_transaction`、`/OP/update_sell_transaction` | `TrnOrder.unit/nav`，`TrnWorkFlowHistory(WF00000016)`，`TrnTrustItem` |
-| OP 最终完成 | `ORDER_EXECUTION_RESULT` | `/OP/update_workflow` -> `usp_UpdateWorkflow_OP` | `TrnOrder.workflow_code = WF00000010`，`TrnWorkFlowHistory(WF00000010)` |
+| OP 最终完成 | `COMPLETED` | `/OP/update_workflow` -> `usp_UpdateWorkflow_OP` | `TrnOrder.workflow_code = WF00000010`，`TrnWorkFlowHistory(WF00000010)` |
 | OP 拒绝 | `ORDER_REJECT` | `/OP/update_workflow` 或 NAV 回调 `status != 1` | `WF00000015`，部分订单需回滚 `TrnOrderPayment` / `TrnTrustItemCart` |
 
 ## 4. OP 直接入账类交易图
@@ -252,7 +252,7 @@ erDiagram
 | `ORDER_ENTRY_CONFIRM` | OP -> UW | 常规 OP 处理订单 | 待新增；更新 `TrnOrder.op_order_no` | 是否同步写 `WF00000005` 需业务确认 |
 | `ORDER_NAV_CONFIRM` | OP -> UW | `B` | `/OP/update_buy_transaction` -> `usp_UpdateProcessedBuyTransaction` | 成功推进 `WF00000016` |
 | `ORDER_NAV_CONFIRM` | OP -> UW | `S/FS` | `/OP/update_sell_transaction` -> `usp_UpdateProcessedSellTransaction` | 成功推进 `WF00000016` |
-| `ORDER_EXECUTION_RESULT` | OP -> UW | 常规订单 | `/OP/update_workflow` -> `usp_UpdateWorkflow_OP` | 成功推进 `WF00000010` |
+| `COMPLETED` | OP -> UW | 常规订单 | `/OP/update_workflow` -> `usp_UpdateWorkflow_OP` | 成功推进 `WF00000010` |
 | `ORDER_REJECT` | OP -> UW | 常规订单 | `/OP/update_workflow` 或 NAV 回调失败 | 通常 `WF00000015`，并按订单类型处理回滚 |
 | `TRUST_DIRECT_BOOKING` | OP -> UW | `DV/US/CN/IN/DN/TI/TO` | `/OP/update_order_from_OP` -> `usp_TransactionFromOP` | OP 主动写入订单、workflow、trust/holding |
 
@@ -271,7 +271,7 @@ erDiagram
 ## 8. 落地建议
 
 1. 新统一接口只暴露一个入口，但服务内部按 `type` 映射到不同 command handler。
-2. 对普通订单，先实现最小闭环：`ORDER_PENDING_QUERY -> ORDER_ENTRY_CONFIRM -> ORDER_NAV_CONFIRM -> ORDER_EXECUTION_RESULT`。
+2. 对普通订单，先实现最小闭环：`ORDER_PENDING_QUERY -> ORDER_ENTRY_CONFIRM -> ORDER_NAV_CONFIRM / ORDER_UNIT_CONFIRM -> COMPLETED`。
 3. `MstOPRawData` 必须在每次 OP 请求进入时落审计，建议 `raw_data_type` 使用统一命名，例如 `OP_API - ORDER_NAV_CONFIRM`，同时保留老系统类型兼容映射。
 4. `WF00000005` 不要默认强推。若前端、报表、运营需要“OP 已录入待确认”状态，再补常量、描述、查询和历史迁移策略；否则只写 `op_order_no`，订单停在 `WF00000004` 到 NAV 回写。
 5. 所有状态推进必须同时更新 `TrnOrder.workflow_code` 和插入 `TrnWorkFlowHistory`，否则后续对账会只能看到当前态，看不到 OP 处理链路。

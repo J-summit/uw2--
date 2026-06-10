@@ -492,7 +492,7 @@ Phase 3：复杂产品与客户资料
 ## 待确认问题
 
 1. `WF00000005` 是否是 OP 录入确认后的强制状态，还是只写 `opOrderNo` 并保持 `WF00000004`。
-2. `COMPLETED` 与流程图中的 `ORDER_EXECUTION_RESULT` 是否统一命名为 `COMPLETED`。
+2. 首期最终完成命令主名称已按当前 UWealth 实现统一为 `COMPLETED`；旧 `ORDER_EXECUTION_RESULT` 是否作为兼容别名需联调确认。
 3. `ORDER_NAV_CONFIRM` 是否只用于 Buy，Sell 是否固定使用 `ORDER_UNIT_CONFIRM`。
 4. `DP` 的 FPX 判断字段和 payment method 映射需要最终确认。
 5. `DP`、`WD` 是否必须经过 `ORDER_ENTRY_CONFIRM`，还是可由 `COMPLETED` 直接完成。
