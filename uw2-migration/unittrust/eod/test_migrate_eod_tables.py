@@ -1,6 +1,7 @@
 import datetime as dt
 import unittest
 from decimal import Decimal
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import migrate_eod_tables as migration
@@ -12,6 +13,11 @@ class MigrateEodTablesTest(unittest.TestCase):
 
         self.assertEqual(dt.date(2025, 1, 1), args.from_date)
         self.assertIsNone(args.to_date)
+
+    def test_default_config_file_is_unittrust_db_ini(self):
+        expected = Path(migration.__file__).resolve().parent.parent / "db.ini"
+
+        self.assertEqual(expected, Path(migration.DEFAULT_CONFIG_FILE))
 
     def test_source_sql_aliases_legacy_bfe_columns(self):
         sql = migration._source_sql(migration.HOLDING_EOD, None)

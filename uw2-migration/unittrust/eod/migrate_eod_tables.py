@@ -19,7 +19,9 @@ import pyodbc
 
 DEFAULT_FROM_DATE = dt.date(2025, 1, 1)
 DEFAULT_BATCH_SIZE = 1000
-DEFAULT_CONFIG_FILE = os.path.join(os.path.dirname(__file__), "db.ini")
+DEFAULT_CONFIG_FILE = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.pardir, "db.ini")
+)
 LEGACY_COLUMN_NAMES = {
     "bfe_code": "BFECode",
     "bfe_sub_code": "BFESubCode",
