@@ -12,11 +12,6 @@ dev
 POST http://113.31.110.251:42157/openapi/fund/op/commands
 ```
 
-uat
-```http
-POST http://xxxx/openapi/fund/op/commands
-```
-
 request
 
 ```json
@@ -42,26 +37,21 @@ response
   "data": {
     "totalCount": 4,
     "page": [
-      {
-        "uwOrderNo": "OD260406102449381037",
-        "orderType": "B",
+       {
+        "uwOrderNo": "OD260723142726111003",
+        "orderType": "DP",
         "workflowCode": "WF00000004",
-        "accountCode": "S02005WW",
-        "tradeDate": "2026-04-06 10:24:49.387",
-        "trnCode": "UP",
-        "stockCode": "F0000170SY",
-        "amount": 15000,
-        "unit": 0,
-        "salesChargeRate": 0,
-        "salesChargeAmount": 0,
+        "accountCode": "C00375WW",
+        "depositDate": "2026-07-23 14:27:26.116",
+        "depositMethod": "105",
+        "bankAccount": "-",
+        "currency": "MYR",
+        "amount": 100000,
+        "salesChargeRate": 2,
+        "salesChargeAmount": 1957.71,
         "otherFee": 0,
-        "orderNo": "OD260406102449381037",
-        "orderCurr": "MYR",
-        "orderExRate": 1,
-        "amountSC": 15000,
-        "mode": "ONLINE",
-        "remark": "",
-        "taxAmount": 0
+        "orderNo": "OD260723142726111003",
+        "taxAmount": 156.62
       }
    }
 }
@@ -69,7 +59,9 @@ response
 
 #### 2.Booking to fund house
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -111,7 +103,9 @@ response
 
 #### 3.Booking confirmation
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -167,7 +161,9 @@ response
 
 #### 4.Settlement
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 
 
@@ -208,24 +204,44 @@ response
 }
 ```
 
-#### 5.OP Rejects Orders
+#### 5.OP Rejects Orders -todo
 
-url  same op pull
+same with  Booking confirmation ( status =0  ) refer uw v1
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
 ```json
 {
-  "type": "ORDER_REJECT",
+  "type": "BOOKING_CONFIRMATION",
   "version": "1.0",
-  "requestId": "550e8400-e29b-41d4-a716-446655440006",
-  "timestamp": 1778122800000,
+  "requestId": "550e8400-e29b-41d4-a716-446655440003",
+  "timestamp": 1778139000000,
   "request": [
     {
-      "uwOrderNo": "OD251230150042173191",
-      "opOrderNo": "OPORD202605070001",
-      "reason": "Invalid fund account",
-      "operator": "OP001"
+      "opPkId": "UTF*260400402",
+      "uwOrderNo": "OD260406102449381037",
+      "clientCode": "S02005WW",
+      "unit": 21346.24,
+      "nav": 0.7027,
+      "branch": "S51",
+      "grossAmount": -15000,
+      "netAmount": -15000,
+      "mGrossAmount": -15000,
+      "mNetAmount": -15000,
+      "saleChargeAmount": 0,
+      "saleChargeRate": 0,
+      "currency": "MYR",
+      "currencyRate": 1,
+      "fundId": "F0000170SY",
+      "fundAmount": -15000,
+      "fundMAmount": -15000,
+      "type": null,
+      "status": 0,
+      "ipAddress": "169.254.1.2"
     }
   ]
 }
@@ -240,8 +256,8 @@ response
   "success": true,
   "data": [
     {
-      "uwOrderNo": "OD251230150042173191",
-      "opOrderNo": "OPORD202605070001",
+      "uwOrderNo": "OD260406102449381037",
+      "opOrderNo": "UTF*260400402",
       "success": "true"
     }
   ]
@@ -258,11 +274,7 @@ dev
 POST http://113.31.110.251:42157/openapi/fund/op/commands
 ```
 
-uat
 
-```http
-POST http://xxxx/openapi/fund/op/commands
-```
 
 request
 
@@ -289,29 +301,35 @@ response
   "data": {
     "totalCount": 4,
     "page": [
-      {
-        "uwOrderNo": "OD260410125537104695",
+     {
+        "uwOrderNo": "OD260703153407074006",
         "orderType": "DP",
         "workflowCode": "WF00000004",
-        "accountCode": "C02806WW",
-        "depositDate": "2026-04-10 12:55:37.107",
+        "accountCode": "A00001WW",
+        "depositDate": "2026-07-03 15:34:07.075",
         "depositMethod": "105",
-        "bankAccount": "27",
-        "currency": "MYR",
-        "amount": 30000,
-        "salesChargeRate": "2.00",
-        "salesChargeAmount": 587.31,
-        "otherFee": "0",
-        "orderNo": "OD260410125537104695",
-        "taxAmount": "46.99"
-      }
+        "bankAccount": "-",
+        "currency": "CNY",
+        "amount": 10000,
+        "salesChargeRate": 0,
+        "salesChargeAmount": 0,
+        "otherFee": 0,
+        "orderNo": "OD260703153407074006",
+        "taxAmount": 0,
+        "supDoc": [
+          {
+            "url": "\\\\10.10.20.100\\storage\\osd\\RECEIPT\\2026\\07\\ff8cc1cd7ad44bd097a1c16a16539071.png",
+            "originalFileName": "Snipaste_2026-06-04_18-17-04.png"
+          }
    }
 }
 ```
 
 #### 2.cash_deposit_confirm
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -352,7 +370,9 @@ response
 
 #### 3.settle
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -409,11 +429,7 @@ dev
 POST http://113.31.110.251:42157/openapi/fund/op/commands
 ```
 
-uat
 
-```http
-POST http://xxxx/openapi/fund/op/commands
-```
 
 request
 
@@ -468,7 +484,9 @@ response
 
 #### 2.Booking to fund house
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -509,7 +527,9 @@ response
 
 #### 3.Unit confirmation
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -565,7 +585,9 @@ response
 
 #### 4.Settlement
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -606,7 +628,9 @@ response
 
 #### 5.OP Rejects Orders
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -654,11 +678,7 @@ dev
 POST http://113.31.110.251:42157/openapi/fund/op/commands
 ```
 
-uat
 
-```http
-POST http://xxxx/openapi/fund/op/commands
-```
 
 request
 
@@ -704,7 +724,9 @@ response
 
 #### 2.Withdraw entry confirm
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -745,7 +767,9 @@ response
 
 #### 3.settle
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
@@ -794,7 +818,9 @@ response
 
 #### 4.OP Rejects Orders
 
-url  same op pull
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
 
 request
 
