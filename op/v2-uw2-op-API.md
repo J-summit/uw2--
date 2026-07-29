@@ -1,6 +1,7 @@
 | **Date** | **Author** | **Change Description** | **Version** |
 | --- | --- | --- | --- |
 | 2026-07-29 | Codex | Corrected the Buy and Sell entry confirmation section titles and command type from `BOOKING_TO_FUND_HOUSE` to `ORDER_ENTRY_CONFIRM` | V2.0 |
+| 2026-07-29 | Codex | Corrected the cash deposit confirmation command type from `CASH_DEPOSIT_CONFIRM` to `ORDER_ENTRY_CONFIRM` | V2.0 |
 
 ## Table of Contents
 
@@ -339,7 +340,7 @@ request
 
 ```json
 {
-  "type": "CASH_DEPOSIT_CONFIRM",
+  "type": "ORDER_ENTRY_CONFIRM",
   "version": "1.0",
   "requestId": "550e8400-e29b-41d4-a716-446655440002",
   "timestamp": 1778121300000,
