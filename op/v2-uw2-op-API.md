@@ -43,20 +43,28 @@ response
     "totalCount": 4,
     "page": [
        {
-        "uwOrderNo": "OD260723142726111003",
-        "orderType": "DP",
+        "uwOrderNo": "OD260728222511198007",
+        "orderType": "B",
         "workflowCode": "WF00000004",
-        "accountCode": "C00375WW",
-        "depositDate": "2026-07-23 14:27:26.116",
-        "depositMethod": "105",
-        "bankAccount": "-",
-        "currency": "MYR",
+        "accountCode": "J00572WWN",
+        "clientCode": "J00572WWN",
+        "tradeDate": "2026-07-28 22:25:11.198",
+        "trnCode": "UP",
+        "stockCode": "F00000ZV4P",
+        "fundId": "FN00000009",
+        "prsOrders": [],
         "amount": 100000,
-        "salesChargeRate": 2,
-        "salesChargeAmount": 1957.71,
+        "unit": 0,
+        "salesChargeRate": 0,
+        "salesChargeAmount": 0,
         "otherFee": 0,
-        "orderNo": "OD260723142726111003",
-        "taxAmount": 156.62
+        "orderNo": "OD260728222511198007",
+        "orderCurr": "MYR",
+        "orderExRate": 1,
+        "amountSC": 100000,
+        "mode": "ONLINE",
+        "remark": "",
+        "taxAmount": 0
       }
    }
 }
@@ -862,3 +870,133 @@ response
   ]
 }
 ```
+
+### 5.OrderType（SW） switch
+
+#### 1.OP pull
+
+dev
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "ORDER_PENDING_QUERY",
+  "version": "1.0",
+  "requestId": "8c302cea-7a90-46b8-9aff-d6209867ca80",
+  "timestamp": 1785400976501,
+  "request": {
+    "orderTypes": [
+      "SW"
+    ],
+    "workflowCode": "WF00000004",
+    "pageNo": 1,
+    "pageSize": 1000
+  }
+}
+```
+
+response:
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": {
+    "totalCount": 1,
+    "page": [
+      {
+        "uwOrderNo": "OD260730163226361002",
+        "orderType": "SW",
+        "workflowCode": "WF00000004",
+        "accountCode": "C00375WWN",
+        "tradeDate": "2026-07-30 16:32:26.179",
+        "SwitchType": "2",
+        "SellDetail": "F00000YO3Z,59477.00,SO260730163226407005|F00000PLRP,1000.00,SO260730163226408006",
+        "BuyDetail": "F00001ELZJ,80.00,SO260730163226409007|F00001ELZK,20.00,SO260730163226410008",
+        "OrderGrpNo": "OD260730163226361002",
+        "mode": "ONLINE"
+      }
+    ]
+  }
+}
+```
+
+#### 2.Switch entry confirm
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "ORDER_ENTRY_CONFIRM",
+  "version": "1.0",
+  "requestId": "235598cc-1c2e-4fe1-8736-b966fcf0f4eb",
+  "timestamp": 1785413272033,
+  "request": [
+    {
+      "uwOrderNo": "OD260730200534552003",
+      "confirmedAt": "2026-07-30T20:07:52.033+08:00",
+      "success": "true",
+      "swithleg": [
+        {
+          "OriginalID": "SO260730200534576009",
+          "OP_Id": "OP260730200534576009",
+          "success": "true"
+        },
+        {
+          "OriginalID": "SO260730200534577010",
+          "OP_Id": "OP260730200534577010",
+          "success": "true"
+        }
+      ],
+      "opOrderNo": "OP260730200534552003",
+      "operator": "OP001"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD260730200534552003",
+      "opOrderNo": "OP260730200534552003",
+      "workflowCode": "WF00000006",
+      "success": true,
+      "code": null,
+      "error": null,
+      "legs": [
+        {
+          "switchOrderNo": "SO260730200534576009",
+          "opSwitchOrderNo": "OP260730200534576009",
+          "success": true
+        },
+        {
+          "switchOrderNo": "SO260730200534577010",
+          "opSwitchOrderNo": "OP260730200534577010",
+          "success": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### 3. switch update workflow
+
+
