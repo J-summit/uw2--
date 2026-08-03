@@ -2,6 +2,7 @@
 | --- | --- | --- | --- |
 | 2026-07-29 | majie | Corrected the Buy and Sell entry confirmation section titles and command type from `BOOKING_TO_FUND_HOUSE` to `ORDER_ENTRY_CONFIRM` | V2.0 |
 | 2026-07-29 | majie | Corrected the cash deposit confirmation command type from `CASH_DEPOSIT_CONFIRM` to `ORDER_ENTRY_CONFIRM` | V2.0 |
+| 2026-07-30 | majie | add switch （op json demo） | V2.0 |
 
 ## Table of Contents
 
@@ -887,8 +888,8 @@ request
 {
   "type": "ORDER_PENDING_QUERY",
   "version": "1.0",
-  "requestId": "8c302cea-7a90-46b8-9aff-d6209867ca80",
-  "timestamp": 1785400976501,
+  "requestId": "aa10aef4-cebf-4cdc-947e-2b74f53ae8e8",
+  "timestamp": 1785735229787,
   "request": {
     "orderTypes": [
       "SW"
@@ -911,15 +912,17 @@ response:
     "totalCount": 1,
     "page": [
       {
-        "uwOrderNo": "OD260730163226361002",
+        "uwOrderNo": "OD260803103631160003",
         "orderType": "SW",
         "workflowCode": "WF00000004",
         "accountCode": "C00375WWN",
-        "tradeDate": "2026-07-30 16:32:26.179",
-        "SwitchType": "2",
-        "SellDetail": "F00000YO3Z,59477.00,SO260730163226407005|F00000PLRP,1000.00,SO260730163226408006",
-        "BuyDetail": "F00001ELZJ,80.00,SO260730163226409007|F00001ELZK,20.00,SO260730163226410008",
-        "OrderGrpNo": "OD260730163226361002",
+        "clientCode": "C00375WWN",
+        "branch": "S51       ",
+        "tradeDate": "2026-08-03 10:36:31.133",
+        "SwitchType": "1",
+        "SellDetail": "F00000PYG2,675.36,SO260803103631185005",
+        "BuyDetail": "F00000PYG1,100.00,SO260803103631188006",
+        "OrderGrpNo": "OD260803103631160003",
         "mode": "ONLINE"
       }
     ]
@@ -928,6 +931,8 @@ response:
 ```
 
 #### 2.Switch entry confirm
+
+dev
 
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
@@ -939,26 +944,23 @@ request
 {
   "type": "ORDER_ENTRY_CONFIRM",
   "version": "1.0",
-  "requestId": "235598cc-1c2e-4fe1-8736-b966fcf0f4eb",
-  "timestamp": 1785413272033,
+  "requestId": "8afc56fc-cca7-4beb-a61b-38e47570c6f8",
+  "timestamp": 1785735234639,
   "request": [
     {
-      "uwOrderNo": "OD260730200534552003",
-      "confirmedAt": "2026-07-30T20:07:52.033+08:00",
-      "success": "true",
-      "swithleg": [
+      "uwOrderNo": "OD260803103631160003",
+      "legs": [
         {
-          "OriginalID": "SO260730200534576009",
-          "OP_Id": "OP260730200534576009",
-          "success": "true"
+          "switchOrderNo": "SO260803103631185005",
+          "opSwitchOrderNo": "OP260803103631185005"
         },
         {
-          "OriginalID": "SO260730200534577010",
-          "OP_Id": "OP260730200534577010",
-          "success": "true"
+          "switchOrderNo": "SO260803103631188006",
+          "opSwitchOrderNo": "OP260803103631188006"
         }
       ],
-      "opOrderNo": "OP260730200534552003",
+      "success": true,
+      "opOrderNo": "OP260803103631160003",
       "operator": "OP001"
     }
   ]
@@ -974,21 +976,27 @@ response
   "success": true,
   "data": [
     {
-      "uwOrderNo": "OD260730200534552003",
-      "opOrderNo": "OP260730200534552003",
+      "uwOrderNo": "OD260803103631160003",
+      "opOrderNo": "OP260803103631160003",
       "workflowCode": "WF00000006",
       "success": true,
       "code": null,
       "error": null,
       "legs": [
         {
-          "switchOrderNo": "SO260730200534576009",
-          "opSwitchOrderNo": "OP260730200534576009",
+          "switchOrderNo": "SO260803103631185005",
+          "opSwitchOrderNo": "OP260803103631185005",
+          "workflowCode": "WF00000006",
+          "code": null,
+          "error": null,
           "success": true
         },
         {
-          "switchOrderNo": "SO260730200534577010",
-          "opSwitchOrderNo": "OP260730200534577010",
+          "switchOrderNo": "SO260803103631188006",
+          "opSwitchOrderNo": "OP260803103631188006",
+          "workflowCode": "WF00000008",
+          "code": null,
+          "error": null,
           "success": true
         }
       ]
@@ -997,6 +1005,227 @@ response
 }
 ```
 
-#### 3. switch update workflow
+#### 3.SW UPDATE_WORKFLOW
 
+dev
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "UPDATE_WORKFLOW",
+  "version": "1.0",
+  "requestId": "a745a59e-e285-4744-b08f-8fb09d50274b",
+  "timestamp": 1785735238044,
+  "request": [
+    {
+      "workflowCode": "WF00000007",
+      "uwOrderNo": "SO260803103631185005",
+      "orderType": "SW",
+      "operator": "OP001",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opOrderNo": "OP260803103631185005"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "SO260803103631185005",
+      "opOrderNo": "OP260803103631185005",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opOrderGrpNo": "OP260803103631160003",
+      "workflowCode": "WF00000007",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+
+
+#### 4.SW_ORDER_UNIT_CONFIRM -sell
+
+dev
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "SW_ORDER_UNIT_CONFIRM",
+  "version": "1.0",
+  "requestId": "84aa6ed7-4883-4b8a-a75e-95e78cb2e97f",
+  "timestamp": 1785735243092,
+  "request": [
+    {
+      "nav": 1.3139,
+      "unit": 675.36,
+      "grossAmount": 887.36,
+      "netAmount": 887.36,
+      "amount": 887.36,
+      "uwOrderNo": "SO260803103631185005",
+      "orderType": "SW",
+      "operator": "OP001",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opPkId": "OP260803103631185005",
+      "clientCode": "C00375WWN",
+      "branch": "S51       ",
+      "switchOutFundId": "F00000PYG2",
+      "type": "1",
+      "status": 1
+    }
+  ]
+}
+```
+
+
+
+response
+
+```
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "SO260803103631185005",
+      "opOrderNo": "OP260803103631185005",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opOrderGrpNo": "OP260803103631160003",
+      "workflowCode": "WF00000017",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+
+
+#### 5.SW_AMOUNT_CONFIRM- buy
+
+```json
+{
+  "type": "SW_AMOUNT_CONFIRM",
+  "version": "1.0",
+  "requestId": "c1fab7b9-331d-401a-bef7-59c9e9912d06",
+  "timestamp": 1785735248818,
+  "request": [
+    {
+      "nav": 1.3747,
+      "unit": 645.493562,
+      "grossAmount": 887.36,
+      "netAmount": 887.36,
+      "amount": 887.36,
+      "uwOrderNo": "SO260803103631188006",
+      "orderType": "SW",
+      "operator": "OP001",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opPkId": "OP260803103631188006",
+      "clientCode": "C00375WWN",
+      "branch": "S51       ",
+      "switchInFundId": "FN00000167",
+      "type": 1,
+      "status": 1,
+      "ip_address": "169.254.1.2"
+    }
+  ]
+}
+```
+
+
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "SO260803103631188006",
+      "opOrderNo": "OP260803103631188006",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opOrderGrpNo": "OP260803103631160003",
+      "workflowCode": "WF00000018",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+
+
+#### 7.SETTLEMENT
+
+dev
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "SETTLEMENT",
+  "version": "1.0",
+  "requestId": "e009089b-7434-4960-ad78-b845d24aba49",
+  "timestamp": 1785735245744,
+  "request": [
+    {
+      "uwOrderNo": "SO260803103631185005",
+      "orderType": "SW",
+      "operator": "OP001",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opOrderNo": "OP260803103631185005"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "SO260803103631185005",
+      "opOrderNo": "OP260803103631185005",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opOrderGrpNo": "OP260803103631160003",
+      "workflowCode": "WF00000010",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
 
