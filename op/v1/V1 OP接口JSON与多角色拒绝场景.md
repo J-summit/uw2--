@@ -14,9 +14,10 @@
 - [6. EPF Buy](#6-epf-buy)
 - [7. Deposit](#7-deposit)
 - [8. Sell](#8-sell)
-- [9. Withdrawal](#9-withdrawal)
-- [10. 场景总表](#10-场景总表)
-- [11. 已确认的实现边界](#11-已确认的实现边界)
+- [9. Switch](#9-switch)
+- [10. Withdrawal](#10-withdrawal)
+- [11. 场景总表](#11-场景总表)
+- [12. 已确认的实现边界](#12-已确认的实现边界)
 
 ## 1. 范围与证据
 
@@ -201,6 +202,7 @@ V1 当前配置中的 OP 出站 URL：
 | 业务 | 调用方 -> 接收方 | OP 提供的当前配置 URL |
 | --- | --- | --- |
 | Buy、PRS Buy、EPF Buy、Sell、PRS Sell、EPF Sell | UWealth WebAPI -> OP | `POST http://10.10.20.100:8080/api/IntegrationExt/TransactionUnitTrust` |
+| Switch | UWealth WebAPI -> OP | `POST http://10.10.20.100:8080/api/IntegrationExt/TransactionSwitch` |
 | Deposit（非 FPX） | UWealth WebAPI -> OP | `POST http://10.10.20.100:8080/api/IntegrationExt/TransactionCashDeposit` |
 | Withdrawal | UWealth WebAPI -> OP | `POST http://10.10.20.100:8080/api/IntegrationExt/TransactionWithdrawalRequest` |
 
@@ -214,6 +216,7 @@ OP 回调使用 UWealth 提供的 WebApp URL。下表只写相对路径，实际
 | 普通 Sell 成交/拒绝 | OP -> UWealth WebApp | `POST /OP/update_sell_transaction` |
 | PRS Sell 成交/拒绝 | OP -> UWealth WebApp | `POST /OP/update_sell_prs_transaction` |
 | EPF Sell 成交/拒绝 | OP -> UWealth WebApp | `POST /OP/update_sell_epf_transaction` |
+| Switch 成交/拒绝 | OP -> UWealth WebApp | `POST /OP/update_switch` |
 | Deposit 成交/拒绝 | OP -> UWealth WebApp | `POST /OP/update_cash_deposit` |
 | Withdrawal 成交/拒绝 | OP -> UWealth WebApp | `POST /OP/update_cash_withdrawal` |
 | 通用 workflow 推进 | OP -> UWealth WebApp | `POST /OP/update_workflow` |
@@ -1495,9 +1498,133 @@ PRS Sell 出站按实际 `fund_sub_acc` 选择 WP7/WP3，并使用对应 PRS uni
 
 V1 Sell 创建没有写独立 reservation 表，也没有直接扣减实际 holding。可卖份额通过 `fn_UtGetPendingRdptTrans(1)` 汇总 pending unit 后动态计算。因此拒绝/取消时 PHP 没有 Buy/WD 那种显式 cart/payment release；终态订单何时从 pending unit 中排除取决于数据库函数的 workflow 过滤。
 
-## 9. Withdrawal
+## 9. Switch
 
-### 9.1 创建 JSON
+### 9.1 创建入口与订单结构
+
+Switch 的主订单 `TrnOrder.order_type` 为 `SW`，同一主订单下在 `TrnSwitchOrder` 维护 Switch Out（`trans_type=SS`）和 Switch In（`trans_type=SB`）明细；OP 的 `OrderGrpNo` 始终使用主订单号，不使用任一明细 `switch_order_no`。
+
+| Switch 类型 | Browser -> WebApp | WebApp -> WebAPI |
+| --- | --- | --- |
+| Inter Switch | `POST /transaction/_inter_switch` | `POST /transaction/order/interswitch` |
+| Intra Switch | `POST /transaction/_intra_switch` | `POST /transaction/order/intraswitch` |
+| PRS Intra Switch | `POST /transaction/_intra_switch_prs` | `POST /transaction/order/prs/intraswitch` |
+| EPF Intra Switch | `POST /transaction/_intra_switch_epf` | `POST /transaction/order/epf/intraswitch` |
+
+`Inter Switch` 在 V1 常量中为 `ES`，`Intra Switch` 为 `AS`；送 OP 时分别映射为 `SwitchType="2"` 和 `SwitchType="1"`。一笔 Switch 至少须同时包含一条 `SS` 与一条 `SB` 明细。
+
+### 9.2 UW 向 OP 的 Switch JSON
+
+**URL 与方向：**`UWealth WebAPI -> OP`。调用方是 UWealth，URL 由 OP 提供：
+
+```http
+POST http://10.10.20.100:8080/api/IntegrationExt/TransactionSwitch
+```
+
+以下示例为一笔 Intra Switch：卖出 `F000000001` 的 1,000 units，100% 转入 `F000000002`。`SellDetail` 和 `BuyDetail` 均允许以 `|` 连接多条明细。
+
+```json
+{
+  "accountCode": "A00001WWN",
+  "tradeDate": "2026-07-01 10:45:00.000",
+  "SwitchType": "1",
+  "SellDetail": "F000000001,1000.00,SO260701104500000001",
+  "BuyDetail": "F000000002,100,SO260701104500000002",
+  "OrderGrpNo": "OD260701104500000007",
+  "mode": "ONLINE"
+}
+```
+
+| 字段 | V1 来源/规则 |
+| --- | --- |
+| `accountCode` | 普通账户使用 WW/WWN client code；EPF Switch 将 `WWN` 替换为 `WE`。 |
+| `SwitchType` | `AS -> "1"`，`ES -> "2"`。 |
+| `SellDetail` | 每条为 `datafeed fund_id,unit,switch_order_no`。 |
+| `BuyDetail` | 每条为 `datafeed fund_id,percentage,switch_order_no`；示例的 `100` 表示全部分配。 |
+| `OrderGrpNo` | `TrnOrder.order_no`，即 Switch 主订单号。 |
+
+### 9.3 OP 接单响应
+
+Switch 与普通 Buy/Sell 不同：V1 按 JSON 数组读取 OP 响应。主订单的 `OP_Id` 以 `UTG` 识别并写回 `TrnOrder.op_order_no`；其余明细 ID 写回相应 `TrnSwitchOrder.op_switch_order_no`。
+
+```json
+[
+  {
+    "OriginalID": "OD260701104500000007",
+    "OP_Id": "UTG260700007"
+  },
+  {
+    "OriginalID": "SO260701104500000001",
+    "OP_Id": "UTF260700007"
+  },
+  {
+    "OriginalID": "SO260701104500000002",
+    "OP_Id": "UTF260700008"
+  }
+]
+```
+
+该出站请求及 OP 响应会以 `MstOPRawData.raw_data_type = TRANSACTION - SW` 审计；不能把普通交易的 `OD...|OP_ID` 文本响应格式套用于 Switch。
+
+### 9.4 OP Switch 成功/拒绝 callback
+
+**URL 与方向：**`OP -> UWealth WebApp`，由 UWealth 提供：
+
+```http
+POST /OP/update_switch
+```
+
+```json
+{
+  "OP_PK_ID": "UTSW260700007",
+  "UW_group_order_no": "OD260701104500000007",
+  "UW_order_no": "SO260701104500000001",
+  "client_code": "A00001WWN",
+  "branch": "S51",
+  "unit": 1000.00,
+  "amount": 1200.00,
+  "m_net_amount": 1200.00,
+  "nav": 1.20,
+  "switch_in_fund_id": "F000000002",
+  "switch_out_fund_id": "F000000001",
+  "ip_address": "169.254.1.2",
+  "status": 1
+}
+```
+
+`UW_group_order_no` 是主订单号，`UW_order_no` 是本次回写的 Switch 明细号。V1 会记录 `OP_API - SW` 审计后调用 `usp_UpdateProcessedSwitchTransaction`。拒绝时沿用完全相同的 JSON，将 `status` 改为 `0`；按本文 3.8 的标准 OP Reject 路径，结果为 `WF00000015`。PHP callback 本身不校验当前 workflow，最终状态约束仍由存储过程负责。
+
+Switch 的完成推进可通过通用 callback 一次传入多个订单号，例如：
+
+```http
+POST /OP/update_workflow
+```
+
+```json
+{
+  "UW_order_no": "OD260701104500000007|SO260701104500000001",
+  "client_code": "A00001WWN",
+  "workflow_code": "WF00000010",
+  "ip_address": "169.254.1.2"
+}
+```
+
+### 9.5 Switch 的多角色拒绝场景
+
+| 场景 | Actor | 前置 | 目标 | 说明 |
+| --- | --- | --- | --- | --- |
+| Supervisor Reject | BFE | WF01 | WF11 | Intern/BFE4 创建的 Switch 尚未送 OP；`reason` 必填。 |
+| Client Reject | Client | WF02 | WF12 | 尚未送 OP；Client 须具有该账户 approval right。 |
+| Advisor Reject | - | - | 不适用 | Advisor/BFE 自己创建并等待 Client 的订单如需终止，使用 Cancel。 |
+| BFE Cancel | BFE | WF02 | WF20 | 不写 RejectReason；Client 没有 Cancel/Revoke action。 |
+| OP Reject | OP | 已送 OP | WF15 | 调用 `/OP/update_switch`，`status=0`。 |
+| OP 完成推进 | OP | Switch 明细已处理 | 指定 workflow | 使用 `/OP/update_workflow`；可用 `|` 一次传入主订单和 Switch 明细号。 |
+
+`A/R/C` 的通用入参、角色校验和 Reject/Cancel 的本地落库规则与第 3 节相同；Switch 的区别在于审批/回写同时更新主订单和 Switch 明细，而不是将它拆成独立的普通 Sell 与 Buy 订单。
+
+## 10. Withdrawal
+
+### 10.1 创建 JSON
 
 **URL 与方向：**这是 UWealth 内部创建接口，不是 OP URL：
 
@@ -1528,7 +1655,7 @@ WD 创建时按 FIFO 预占 Cash Account：
 - 创建 `TrnOrderPayment`；
 - 减少对应 `TrnTrustItemCart.os_*` 可用金额。
 
-### 9.2 创建时 `TrnOrder` JSON
+### 10.2 创建时 `TrnOrder` JSON
 
 **URL 与方向：**该 JSON 是 `/cash_withdrawal/create` 处理后的数据库快照，`HTTP URL：无`，不直接发送给 OP。真正发送给 OP 的 request body 和 URL 见 9.3。
 
@@ -1594,7 +1721,7 @@ WD 的字段命名容易误读：`payment_curr_code` 保存 API 的 `receive_cur
 
 依据：`ctrl_cash_withdrawal.php:27-106`；`mdl_order.php:850-873,1115-1215,1301-1349,3149-3280,4454-4466`。
 
-### 9.3 UW 向 OP 的 WD JSON
+### 10.3 UW 向 OP 的 WD JSON
 
 **URL 与方向：**`UWealth WebAPI -> OP`。调用方是 UWealth，URL 由 OP 提供：
 
@@ -1614,7 +1741,7 @@ POST http://10.10.20.100:8080/api/IntegrationExt/TransactionWithdrawalRequest
 }
 ```
 
-### 9.4 OP WD callback
+### 10.4 OP WD callback
 
 **URL 与方向：**`OP -> UWealth WebApp`。调用方是 OP，URL 由 UWealth 提供；WebApp 再内部转发至 WebAPI。
 
@@ -1638,7 +1765,7 @@ POST /OP/update_cash_withdrawal
 
 `status=1` 成功到 `WF00000010`；`status=0` 进入 `WF00000015`。PHP 调用 `usp_UpdateProcessedCashWithdrawal`，精确 trust/付款 DML 未在仓库中提供。
 
-### 9.5 Withdrawal 场景矩阵
+### 10.5 Withdrawal 场景矩阵
 
 | 场景 | Actor | 前置 | 目标 | 资金副作用 |
 | --- | --- | --- | --- | --- |
@@ -1652,7 +1779,7 @@ POST /OP/update_cash_withdrawal
 
 编辑 WD 同样会先用 `C` 取消旧订单，再创建新订单。
 
-## 10. 场景总表
+## 11. 场景总表
 
 | 业务 | Supervisor Reject | Client Reject | BFE Cancel | Client Cancel/Revoke | OP Reject |
 | --- | --- | --- | --- | --- | --- |
@@ -1664,25 +1791,25 @@ POST /OP/update_cash_withdrawal
 | Sell | WF01 -> WF11 | WF02 -> WF12 | WF02 -> WF20 | 不支持 | Sell callback `status=0` -> WF15 |
 | WD | WF01 -> WF11；回补 FIFO | WF02 -> WF12；回补 FIFO | WF02 -> WF20 | 不支持 | WD callback `status=0` -> WF15 |
 
-## 11. 已确认的实现边界
+## 12. 已确认的实现边界
 
-### 11.1 BFE4 Cancel 校验与状态映射不一致
+### 12.1 BFE4 Cancel 校验与状态映射不一致
 
 `valid_workflow_action()` 允许 `fa_type=b4` 在部分 pending 状态执行 `C`，但 `generate_update_workflow()` 的 BFE4 分支只处理 `RS`，没有处理 `C`。因此不能把 BFE4 Cancel 写成可靠的 `WF20` 路径。
 
-### 11.2 OP callback PHP 不检查前置 workflow
+### 12.2 OP callback PHP 不检查前置 workflow
 
 `mdl_OP` 根据 JSON 直接记录 raw data 并调用存储过程。当前状态是否允许 callback，主要由存储过程或数据库数据保证，不是 PHP controller 保证。
 
-### 11.3 OP workflow callback 可以传任意 workflow
+### 12.3 OP workflow callback 可以传任意 workflow
 
 `/OP/update_workflow` 的 PHP model 直接把 `workflow_code` 传给 `usp_UpdateWorkflow_OP`。PHP 不限制只能传 WF05/WF10，也没有 `reason` 字段。
 
-### 11.4 OP wrapper 响应不代表业务成功
+### 12.4 OP wrapper 响应不代表业务成功
 
 `"Data Passed: ..."` 在 WebApp 调用 WebAPI 后直接返回，没有读取或解释 WebAPI 的业务响应。OP 不能仅凭该字符串判断存储过程已经成功提交。
 
-### 11.5 精确存储过程 DML 部分未确认
+### 12.5 精确存储过程 DML 部分未确认
 
 这些存储过程的完整 SQL 定义都不在当前代码仓库。本次已直接读取当前 V1 数据库中的 `dbo.usp_UpdateProcessedBuyPRSTransaction` 和 `dbo.usp_UpdateWorkflow_OP` 定义，因此 5.4 节涉及的 PRS A/B 更新、主订单 unit 累加、WF16/WF10 插入及防重复条件已经确认。
 

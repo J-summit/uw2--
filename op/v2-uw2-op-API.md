@@ -3,6 +3,7 @@
 | 2026-07-29 | majie | Corrected the Buy and Sell entry confirmation section titles and command type from `BOOKING_TO_FUND_HOUSE` to `ORDER_ENTRY_CONFIRM` | V2.0 |
 | 2026-07-29 | majie | Corrected the cash deposit confirmation command type from `CASH_DEPOSIT_CONFIRM` to `ORDER_ENTRY_CONFIRM` | V2.0 |
 | 2026-07-30 | majie | add switch （op json demo） | V2.0 |
+| 2026-08-07 | majie | add Buy ,Sell  BOOKING_TO_FUND_HOUSE,  uw  op entry confirm don't update workflowCode | V2.0 |
 
 ## Table of Contents
 
@@ -73,6 +74,8 @@ response
 
 #### 2.Buy entry confirm
 
+no update workflowCode
+
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
 ```
@@ -115,7 +118,55 @@ response
 }
 ```
 
-#### 3.Booking confirmation
+#### 3. BOOKING_TO_FUND_HOUSE
+
+update workflow  WF05
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+```json
+{
+  "type": "BOOKING_TO_FUND_HOUSE",
+  "version": "1.0",
+  "requestId": "c9dde5fc-aa6b-4c2e-bb96-8ba6b3dbdebb",
+  "timestamp": 1786090747229,
+  "request": [
+    {
+      "uwOrderNo": "OD260807155307985004",
+      "orderType": "B",
+      "opOrderNo": "OP260807155307985004",
+      "operator": "OP001"
+    }
+  ]
+}
+```
+
+response
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD260807155307985004",
+      "opOrderNo": "OP260807155307985004",
+      "workflowCode": "WF00000005",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+
+
+
+#### 4.Booking confirmation
 
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
@@ -173,7 +224,7 @@ response
 }
 ```
 
-#### 4.Settlement
+#### 5.Settlement
 
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
@@ -218,7 +269,7 @@ response
 }
 ```
 
-#### 5.OP Rejects Orders -todo
+#### 6.OP Rejects Orders -todo
 
 same with  Booking confirmation ( status =0  ) refer uw v1
 
@@ -539,7 +590,56 @@ response
 }
 ```
 
-#### 3.Unit confirmation
+#### 3.BOOKING_TO_FUND_HOUSE
+
+update workflow  WF05
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "ORDER_ENTRY_CONFIRM",
+  "version": "1.0",
+  "requestId": "90b9f853-6cbb-4940-939a-98fab7ca4658",
+  "timestamp": 1786094930097,
+  "request": [
+    {
+      "uwOrderNo": "OD260721015459682002",
+      "orderType": "S",
+      "opOrderNo": "OP260721015459682002",
+      "operator": "OP001"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD260721015459682002",
+      "opOrderNo": "OP260721015459682002",
+      "workflowCode": "WF00000004",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+
+
+#### 4.Unit confirmation
 
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
@@ -597,7 +697,7 @@ response
 }
 ```
 
-#### 4.Settlement
+#### 5.Settlement
 
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
@@ -640,7 +740,7 @@ response
 }
 ```
 
-#### 5.OP Rejects Orders
+#### 6.OP Rejects Orders
 
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
