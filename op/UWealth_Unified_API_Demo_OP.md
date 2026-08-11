@@ -1,3 +1,12 @@
+
+
+| Date       | Author | Change Description                                           | Version |
+| ---------- | ------ | ------------------------------------------------------------ | ------- |
+| 2026-08-11 | majie  | Update[Buy flow](#change-buy): `ORDER_ENTRY_CONFIRM` only updates `opReceivedAt` and does not update `workflowCode`; `BOOKING_TO_FUND_HOUSE` advances the order to `WF00000005`. | V2.0    |
+| 2026-08-11 | majie  | Update[Sell flow](#change-sell): `ORDER_ENTRY_CONFIRM` only updates `opReceivedAt` and does not update `workflowCode`; `BOOKING_TO_FUND_HOUSE` advances the order to `WF00000005`. | V2.0    |
+| 2026-08-11 | majie  | Update[Withdrawal flow](#change-wd): `ORDER_ENTRY_CONFIRM` only updates `opReceivedAt`; `workflowCode` and all other fields remain unchanged. | V2.0    |
+| 2026-08-11 | majie  | Update [Deposit flow](#change-dp): deposit orders default to `WF00000003`; `ORDER_ENTRY_CONFIRM` only updates `opReceivedAt`, while `workflowCode` and all other fields remain unchanged. | V2.0    |
+
 # OP System Integration with UWealth Unified API Demo
 
 ## Table of Contents
@@ -36,6 +45,10 @@ The following diagrams show only the major communication points and key status t
 
 #### B - Buy
 
+<a name="change-buy"></a>
+
+
+
 ```mermaid
 sequenceDiagram
     participant UW as UWealth
@@ -45,7 +58,9 @@ sequenceDiagram
     OP->>UW: ORDER_PENDING_QUERY pulls B buy orders
     UW-->>OP: Return WF00000004 orders
     OP->>OP: Internal entry / verification
-    OP->>UW: ORDER_ENTRY_CONFIRM writes back opOrderNo
+    OP->>UW: ORDER_ENTRY_CONFIRM writes back opNo opReceivedAt
+    UW->>UW: Keep workflowCode and all other fields unchanged
+    OP->>UW: BOOKING_TO_FUND_HOUSE
     UW->>UW: Status -> WF00000005 Pending Confirmation
     OP->>OP: OP generates NAV / unit / executed amount and other processing results
     OP->>UW: ORDER_NAV_CONFIRM writes back NAV / unit / executed amount
@@ -56,6 +71,7 @@ sequenceDiagram
 ```
 
 #### S - Sell
+<a name="change-sell"></a>
 
 ```mermaid
 sequenceDiagram
@@ -66,7 +82,9 @@ sequenceDiagram
     OP->>UW: ORDER_PENDING_QUERY pulls S sell orders
     UW-->>OP: Return WF00000004 orders
     OP->>OP: Internal entry / verification
-    OP->>UW: ORDER_ENTRY_CONFIRM writes back opOrderNo
+    OP->>UW: ORDER_ENTRY_CONFIRM writes back opReceivedAt
+    UW->>UW: Keep workflowCode and all other fields unchanged
+    OP->>UW: BOOKING_TO_FUND_HOUSE
     UW->>UW: Status -> WF00000005 Pending Confirmation
     OP->>OP: OP generates sold units / NAV / redemption amount and other processing results
     OP->>UW: ORDER_UNIT_CONFIRM writes back sold units / NAV / redemption amount
@@ -74,11 +92,14 @@ sequenceDiagram
     OP->>OP: Execute settlement
     OP->>UW: COMPLETED writes back completion result
     UW->>UW: Status -> WF00000010 Complete Transaction
+
 ```
 
 #### WD - Withdrawal
+<a name="change-wd"></a>
 
 ```mermaid
+
 sequenceDiagram
     participant UW as UWealth
     participant OP as OP
@@ -87,26 +108,28 @@ sequenceDiagram
     OP->>UW: ORDER_PENDING_QUERY pulls WD withdrawal orders
     UW-->>OP: Return WF00000004 orders
     OP->>OP: Internal entry / verify withdrawal records
-    OP->>UW: ORDER_ENTRY_CONFIRM writes back opOrderNo
-    UW->>UW: Status -> WF00000005 Pending Confirmation
+    OP->>UW: ORDER_ENTRY_CONFIRM writes back opReceivedAt
+    UW->>UW: Keep workflowCode and all other fields unchanged
     OP->>OP: Execute withdrawal
     OP->>UW: COMPLETED writes back completion result
     UW->>UW: Status -> WF00000010 Complete Transaction
+
 ```
 
 #### DP - Deposit
+<a name="change-dp"></a>
 
 ```mermaid
 sequenceDiagram
     participant UW as UWealth
     participant OP as OP
 
-    UW->>UW: Deposit order enters WF00000004 Pending Processing
+    UW->>UW: Deposit order defaults to WF00000003
     OP->>UW: ORDER_PENDING_QUERY pulls DP deposit orders
-    UW-->>OP: Return WF00000004 orders
+    UW-->>OP: Return WF00000003 orders
     OP->>OP: Internal entry / verify deposit records
-    OP->>UW: ORDER_ENTRY_CONFIRM writes back opOrderNo
-    UW->>UW: Status -> WF00000005 Pending Confirmation
+    OP->>UW: ORDER_ENTRY_CONFIRM writes back opOrderNo and opReceivedAt
+    UW->>UW: Keep workflowCode unchanged;
     OP->>UW: COMPLETED writes back completion result
     UW->>UW: Status -> WF00000010 Complete Transaction
 ```
