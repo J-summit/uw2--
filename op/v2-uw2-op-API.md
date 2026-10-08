@@ -5,12 +5,13 @@
 | 2026-07-30 | majie | add switch （op json demo） | V2.0 |
 | 2026-08-07 | majie | add Buy ,Sell  BOOKING_TO_FUND_HOUSE,  uw  op entry confirm don't update workflowCode | V2.0 |
 | 2026-09-29 | majie | ad UPDATE_ORDER_FROM_OP （CN DN DVR DVP TI TO US WFDN ） | V2.0 |
+| 2026-10-08 | majie      | add PRS/EPF Buy demo json | V2.0 |
 
 ## Table of Contents
 
 [TOC]
 
-### 1.orderType（B） normal
+### 1.1 orderType（B） normal
 
 #### 1.OP Pull
 
@@ -272,7 +273,7 @@ response
 
 #### 6.OP Rejects Orders -todo
 
-same with  Booking confirmation ( status =0  ) refer uw v1
+使用 `BOOKING_CONFIRMATION`，`status=0` 表示拒绝，主订单从 `WF00000005` 更新为 `WF00000015`。
 
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
@@ -284,30 +285,15 @@ request
 {
   "type": "BOOKING_CONFIRMATION",
   "version": "1.0",
-  "requestId": "550e8400-e29b-41d4-a716-446655440003",
+  "requestId": "550e8400-e29b-41d4-a716-446655440006",
   "timestamp": 1778139000000,
   "request": [
     {
-      "opPkId": "UTF*260400402",
       "uwOrderNo": "OD260406102449381037",
-      "clientCode": "S02005WW",
-      "unit": 21346.24,
-      "nav": 0.7027,
-      "branch": "S51",
-      "grossAmount": -15000,
-      "netAmount": -15000,
-      "mGrossAmount": -15000,
-      "mNetAmount": -15000,
-      "saleChargeAmount": 0,
-      "saleChargeRate": 0,
-      "currency": "MYR",
-      "currencyRate": 1,
-      "fundId": "F0000170SY",
-      "fundAmount": -15000,
-      "fundMAmount": -15000,
-      "type": null,
-      "status": 0,
-      "ipAddress": "169.254.1.2"
+      "orderType": "B",
+      "opOrderNo": "UTF*260400402",
+      "ipAddress": "169.254.1.2",
+      "status": 0
     }
   ]
 }
@@ -324,7 +310,686 @@ response
     {
       "uwOrderNo": "OD260406102449381037",
       "opOrderNo": "UTF*260400402",
-      "success": "true"
+      "workflowCode": "WF00000015",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+### 1.2 orderType（B） PRS
+
+#### 1.OP Pull
+
+dev
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "ORDER_PENDING_QUERY",
+  "version": "1.0",
+  "requestId": "lc2ffe6f-b654-481a-8887-49620e604022",
+  "timestamp": 1791456120475,
+  "request": {
+    "orderTypes": [
+      "B"
+    ],
+    "workflowCode": "WF00000004",
+    "pageNo": 1,
+    "pageSize": 1000
+  }
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": {
+    "totalCount": 1,
+    "page": [
+      {
+        "uwOrderNo": "OD261008193505699004",
+        "orderType": "B",
+        "workflowCode": "WF00000004",
+        "accountCode": "C00375WP7",
+        "clientCode": "C00375WWN",
+        "tradeDate": "2026-08-03 19:34:53.791",
+        "trnCode": "UP",
+        "stockCode": "F00000PYG3",
+        "fundId": "FN00000168",
+        "amount": 10001,
+        "unit": 0,
+        "salesChargeRate": 3,
+        "salesChargeAmount": 290.61,
+        "otherFee": 0,
+        "orderNo": "OD261008193505699004",
+        "orderCurr": "MYR",
+        "orderExRate": 1,
+        "amountSC": 10001,
+        "mode": "ONLINE",
+        "remark": "",
+        "taxAmount": 23.25
+      }
+    ]
+  }
+}
+```
+
+#### 2.Buy entry confirm
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "ORDER_ENTRY_CONFIRM",
+  "version": "1.0",
+  "requestId": "lc66fe59-79c1-4693-82aa-240232536c55",
+  "timestamp": 1791459504359,
+  "request": [
+    {
+      "uwOrderNo": "OD261008193505699004",
+      "orderType": "B",
+      "opOrderNo": "OP261008193505699004",
+      "operator": "OP001"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008193505699004",
+      "opOrderNo": "OP261008193505699004",
+      "workflowCode": "WF00000004",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+#### 3. BOOKING_TO_FUND_HOUSE
+
+update workflow WF05
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "BOOKING_TO_FUND_HOUSE",
+  "version": "1.0",
+  "requestId": "lc42a2c9-fc34-4184-9466-7f4163e0c627",
+  "timestamp": 1791459539243,
+  "request": [
+    {
+      "uwOrderNo": "OD261008193505699004",
+      "orderType": "B",
+      "opOrderNo": "OP261008193505699004",
+      "operator": "OP001",
+      "client_code": "C00375WP7",
+      "workflow_code": "WF00000005",
+      "ip_address": "169.254.1.2"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008193505699004",
+      "opOrderNo": "OP261008193505699004",
+      "workflowCode": "WF00000005",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+#### 4.Booking confirmation
+
+update workflow WF16
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "BOOKING_CONFIRMATION",
+  "version": "1.0",
+  "requestId": "lce3d23c-106d-47ac-b3ee-a305adff6db1",
+  "timestamp": 1791459657811,
+  "request": [
+    {
+      "uwOrderNo": "OD261008193505699004",
+      "orderType": "B",
+      "opOrderNo": "OP261008193505699004",
+      "OP_PK_ID": "OP261008193505699004A",
+      "client_code": "C00375WP7",
+      "unit": 4505.05,
+      "nav": 1.5052,
+      "branch": "S51",
+      "gross_amount": -7000.7,
+      "net_amount": -6781,
+      "m_gross_amount": -7000.7,
+      "m_net_amount": -6781,
+      "sale_charge_amount": 219.7,
+      "sale_charge_rate": 0.03,
+      "currency": "MYR",
+      "currency_rate": 1,
+      "fund_id": "FN00000168",
+      "fund_amount": -7000.7,
+      "fund_m_amount": -7000.7,
+      "type": 1,
+      "fund_sub_acc": "A",
+      "ip_address": "169.254.1.2",
+      "status": 1
+    },
+    {
+      "uwOrderNo": "OD261008193505699004",
+      "orderType": "B",
+      "opOrderNo": "OP261008193505699004",
+      "OP_PK_ID": "OP261008193505699004B",
+      "client_code": "C00375WP3",
+      "unit": 1930.73,
+      "nav": 1.5052,
+      "branch": "S51",
+      "gross_amount": -3000.3,
+      "net_amount": -2906.14,
+      "m_gross_amount": -3000.3,
+      "m_net_amount": -2906.14,
+      "sale_charge_amount": 94.16,
+      "sale_charge_rate": 0.03,
+      "currency": "MYR",
+      "currency_rate": 1,
+      "fund_id": "FN00000168",
+      "fund_amount": -3000.3,
+      "fund_m_amount": -3000.3,
+      "type": 2,
+      "fund_sub_acc": "B",
+      "ip_address": "169.254.1.2",
+      "status": 1
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008183634539003",
+      "opOrderNo": "OP261008183634539003",
+      "workflowCode": "WF00000016",
+      "success": true,
+      "code": null,
+      "error": null
+    },
+    {
+      "uwOrderNo": "OD261008183634539003",
+      "opOrderNo": "OP261008183634539003",
+      "workflowCode": "WF00000016",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+#### 5.Settlement
+
+update workflow WF10
+
+每项只需 `uwOrderNo` 和 `workflowCode`。WP7/A、WP3/B 通知共用主订单号，仅完成一次；重复 PRS 成功通知打印 WARN 并返回成功。
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "SETTLEMENT",
+  "version": "1.0",
+  "requestId": "lc310484-b66a-4e02-9b1d-be65d2010899",
+  "timestamp": 1791456222425,
+  "request": [
+    {
+      "uwOrderNo": "OD261008183634539003",
+      "workflowCode": "WF00000010"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008183634539003",
+      "opOrderNo": "OP261008183634539003",
+      "workflowCode": "WF00000010",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+#### 6.OP Rejects Orders -todo
+
+使用 `BOOKING_CONFIRMATION`，`status=0` 表示拒绝，主订单从 `WF00000005` 更新为 `WF00000015`。 PRS 仅发送一条主订单拒绝通知。
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "BOOKING_CONFIRMATION",
+  "version": "1.0",
+  "requestId": "550e8400-e29b-41d4-a716-446655440106",
+  "timestamp": 1791456201895,
+  "request": [
+    {
+      "uwOrderNo": "OD261008183634539003",
+      "orderType": "B",
+      "opOrderNo": "OP261008183634539003",
+      "ipAddress": "169.254.1.2",
+      "status": 0
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008183634539003",
+      "opOrderNo": "OP261008183634539003",
+      "workflowCode": "WF00000015",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+### 1.3 orderType（B） EPF
+
+#### 1.OP Pull
+
+dev
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "ORDER_PENDING_QUERY",
+  "version": "1.0",
+  "requestId": "lc5272f7-fc23-4d94-9473-6776b782a407",
+  "timestamp": 1791460274828,
+  "request": {
+    "orderTypes": [
+      "B"
+    ],
+    "workflowCode": "WF00000004",
+    "pageNo": 1,
+    "pageSize": 1000
+  }
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": {
+    "totalCount": 1,
+    "page": [
+      {
+        "uwOrderNo": "OD261008175926560002",
+        "orderType": "B",
+        "workflowCode": "WF00000004",
+        "accountCode": "C00375WE",
+        "clientCode": "C00375WWN",
+        "tradeDate": "2026-08-03 17:59:26.467",
+        "trnCode": "UP",
+        "stockCode": "F000000AJR",
+        "fundId": "FN00000045",
+        "amount": 10000,
+        "unit": 0,
+        "salesChargeRate": 3,
+        "salesChargeAmount": 290.58,
+        "otherFee": 0,
+        "orderNo": "OD261008175926560002",
+        "orderCurr": "MYR",
+        "orderExRate": 1,
+        "amountSC": 10000,
+        "mode": "ONLINE",
+        "remark": "",
+        "taxAmount": 23.25
+      }
+    ]
+  }
+}
+```
+
+#### 2.Buy entry confirm
+
+no update workflowCode（保持 WF00000004）
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "ORDER_ENTRY_CONFIRM",
+  "version": "1.0",
+  "requestId": "lcdbfe09-7197-4fb8-a0ee-db3cec95680e",
+  "timestamp": 1791460430087,
+  "request": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "orderType": "B",
+      "opOrderNo": "OP261008175926560002",
+      "operator": "OP001"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "opOrderNo": "OP261008175926560002",
+      "workflowCode": "WF00000004",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+#### 3. BOOKING_TO_FUND_HOUSE
+
+update workflow WF05
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "BOOKING_TO_FUND_HOUSE",
+  "version": "1.0",
+  "requestId": "lcb21de9-233c-438a-b4c2-9c26e0450716",
+  "timestamp": 1791460435168,
+  "request": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "orderType": "B",
+      "opOrderNo": "OP261008175926560002",
+      "operator": "OP001",
+      "client_code": "C00375WE",
+      "workflow_code": "WF00000005",
+      "ip_address": "169.254.1.2"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "opOrderNo": "OP261008175926560002",
+      "workflowCode": "WF00000005",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+#### 4.Booking confirmation
+
+update workflow WF16
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "BOOKING_CONFIRMATION",
+  "version": "1.0",
+  "requestId": "lcd92f47-eda7-4460-a842-5d8c52c1540c",
+  "timestamp": 1791460449217,
+  "request": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "orderType": "B",
+      "opOrderNo": "OP261008175926560002",
+      "client_code": "C00375WWN",
+      "unit": 8032.77,
+      "nav": 1.2449,
+      "branch": "S51",
+      "gross_amount": -10000,
+      "net_amount": -10000,
+      "m_gross_amount": -10000,
+      "m_net_amount": -10000,
+      "sale_charge_amount": 0,
+      "sale_charge_rate": 0.03,
+      "currency": "MYR",
+      "currency_rate": 1,
+      "fund_id": "FN00000045",
+      "fund_amount": -10000,
+      "fund_m_amount": -10000,
+      "ip_address": "169.254.1.2",
+      "status": 1
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "opOrderNo": "OP261008175926560002",
+      "workflowCode": "WF00000016",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+#### 5.Settlement
+
+update workflow WF10
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "SETTLEMENT",
+  "version": "1.0",
+  "requestId": "lc67dc0b-84db-46b4-af27-7057c6bd7a89",
+  "timestamp": 1791460453227,
+  "request": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "workflowCode": "WF00000010"
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "opOrderNo": "OP261008175926560002",
+      "workflowCode": "WF00000010",
+      "success": true,
+      "code": null,
+      "error": null
+    }
+  ]
+}
+```
+
+#### 6.OP Rejects Orders -todo
+
+使用 `BOOKING_CONFIRMATION`，`status=0` 表示拒绝，主订单从 `WF00000005` 更新为 `WF00000015`。
+
+```http
+POST http://113.31.110.251:42157/openapi/fund/op/commands
+```
+
+request
+
+```json
+{
+  "type": "BOOKING_CONFIRMATION",
+  "version": "1.0",
+  "requestId": "550e8400-e29b-41d4-a716-446655440206",
+  "timestamp": 1791460453227,
+  "request": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "orderType": "B",
+      "opOrderNo": "OP261008175926560002",
+      "ipAddress": "169.254.1.2",
+      "status": 0
+    }
+  ]
+}
+```
+
+response
+
+```json
+{
+  "code": "0",
+  "error": null,
+  "success": true,
+  "data": [
+    {
+      "uwOrderNo": "OD261008175926560002",
+      "opOrderNo": "OP261008175926560002",
+      "workflowCode": "WF00000015",
+      "success": true,
+      "code": null,
+      "error": null
     }
   ]
 }
@@ -1488,7 +2153,7 @@ response
 }
 ```
 
-#### 3.DVR - Dividend reinvestment
+#### 3.DVR - Dividend reinvestment（ignore）
 
 dev
 
@@ -1553,7 +2218,7 @@ response
 }
 ```
 
-#### 4.DVP - Dividend payout
+#### 4.DVP - Dividend payout（ignore）
 
 dev
 
@@ -1822,7 +2487,7 @@ response
 }
 ```
 
-#### 8.WFDN - Invoice creation
+#### 8.WFDN - Invoice creation（ignore）
 
 dev
 
