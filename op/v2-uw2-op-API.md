@@ -6,7 +6,7 @@
 | 2026-08-07 | majie | add Buy ,Sell  BOOKING_TO_FUND_HOUSE,  uw  op entry confirm don't update workflowCode | V2.0 |
 | 2026-09-29 | majie | ad UPDATE_ORDER_FROM_OP （CN DN DVR DVP TI TO US WFDN ） | V2.0 |
 | 2026-10-08 | majie      | add PRS/EPF Buy demo json | V2.0 |
-| 2026-10-21 | majie | 1. update switch OP pull   workflowCode wf04->wf06 <br />2.update switch 5.3 UPDATE_WORKFLOW add SW wf09<br />3.[update withdrawal 4.1](#withdrawal-4-1) ，New return field added eg： { "bankAccountNo": "8007482524", "bankCode": "CIBBMYKL",} | V2.0 |
+| 2026-10-21 | majie | 1. [update switch OP pull](#switch-op-pull)   workflowCode wf04->wf06 <br />2.[update switch 5.3 UPDATE_WORKFLOW](#switch-update-workflow) add SW wf09<br />3.[update withdrawal 4.1](#withdrawal-4-1) ，New return field added eg： { "bankAccountNo": "8007482524", "bankCode": "CIBBMYKL",} | V2.0 |
 
 
 
@@ -1463,7 +1463,7 @@ response
 
 ### 4.OrderType(WD)withdraw
 
-<a id="withdrawal-4-1"></a>
+
 #### 1.OP Pull
 
 dev
@@ -1489,7 +1489,7 @@ request
 }
 ```
 
-response
+response <a id="withdrawal-4-1"></a>
 
 ```json
 {
@@ -1683,7 +1683,7 @@ request
 }
 ```
 
-response:
+response: <a id="switch-op-pull"></a>
 
 ```json
 {
@@ -1787,6 +1787,7 @@ response
 }
 ```
 
+
 #### 3.SW UPDATE_WORKFLOW
 
 dev
@@ -1824,7 +1825,7 @@ request
 }
 ```
 
-response
+response <a id="switch-update-workflow"></a>
 
 ```json
 {
