@@ -6,6 +6,9 @@
 | 2026-08-07 | majie | add Buy ,Sell  BOOKING_TO_FUND_HOUSE,  uw  op entry confirm don't update workflowCode | V2.0 |
 | 2026-09-29 | majie | ad UPDATE_ORDER_FROM_OP （CN DN DVR DVP TI TO US WFDN ） | V2.0 |
 | 2026-10-08 | majie      | add PRS/EPF Buy demo json | V2.0 |
+| 2026-10-21 | majie | 1. update switch OP pull   workflowCode wf04->wf06 <br />2.update switch 5.3 UPDATE_WORKFLOW add SW wf09<br />3.[update withdrawal 4.1](#withdrawal-4-1) ，New return field added eg： { "bankAccountNo": "8007482524", "bankCode": "CIBBMYKL",} | V2.0 |
+
+
 
 ## Table of Contents
 
@@ -584,7 +587,17 @@ response
 
 update workflow WF10
 
-每项只需 `uwOrderNo` 和 `workflowCode`。WP7/A、WP3/B 通知共用主订单号，仅完成一次；重复 PRS 成功通知打印 WARN 并返回成功。
+每项只需 `uwOrderNo` 和 `workflowCode`。OP 首次结算只发送一条 WP7/A 通知，并附带账户和 IP；主订单仅完成一次。可再单独发送 WP3/B 通知，重复 PRS 成功通知打印 WARN 并返回成功，不会再次增加持仓或扣款。
+
+OP 订单详情的「PRS 可选通知」提供以下三个按钮，均可跳过，不影响正常流程：
+
+| 按钮 | 发送账户 | 可点击阶段 |
+| --- | --- | --- |
+| WF05 第 2 次通知 | WP7 | 首次 BOOKING_TO_FUND_HOUSE 成功后、Booking confirmation 前 |
+| WF05 第 3 次通知 | WP7 | 首次 BOOKING_TO_FUND_HOUSE 成功后、Booking confirmation 前 |
+| WF10 第 2 次通知 | WP3 | 首次 Settlement 成功后 |
+
+每次点击各发送一条独立 HTTP 请求并记录 request / response。全部点击时，WF05 共三次、WF10 共两次；已发送按钮禁用，失败可重试，补发不改变主订单状态或新增流程历史。两个额外 WF05 沿用步骤 3 的订单号、OP 订单号和账户信息，使用各自新的 `requestId`。
 
 ```http
 POST http://113.31.110.251:42157/openapi/fund/op/commands
@@ -1450,6 +1463,7 @@ response
 
 ### 4.OrderType(WD)withdraw
 
+<a id="withdrawal-4-1"></a>
 #### 1.OP Pull
 
 dev
@@ -1488,6 +1502,8 @@ response
       {
         "uwOrderNo": "OD260410130307112334",
         "orderType": "WD",
+        "bankAccountNo": "8007482524",
+        "bankCode": "CIBBMYKL",
         "workflowCode": "WF00000004",
         "accountCode": "K02028WWN",
         "notificationDate": "2026-04-10 13:03:07.113",
@@ -1660,7 +1676,7 @@ request
     "orderTypes": [
       "SW"
     ],
-    "workflowCode": "WF00000004",
+    "workflowCode": "WF00000006",
     "pageNo": 1,
     "pageSize": 1000
   }
@@ -1680,7 +1696,7 @@ response:
       {
         "uwOrderNo": "OD260803103631160003",
         "orderType": "SW",
-        "workflowCode": "WF00000004",
+        "workflowCode": "WF00000006",
         "accountCode": "C00375WWN",
         "clientCode": "C00375WWN",
         "branch": "S51       ",
@@ -1795,6 +1811,14 @@ request
       "operator": "OP001",
       "uwOrderGrpNo": "OD260803103631160003",
       "opOrderNo": "OP260803103631185005"
+    },
+    {
+      "workflowCode": "WF00000009",
+      "uwOrderNo": "SO260803103631188006",
+      "orderType": "SW",
+      "operator": "OP001",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opOrderNo": "OP260803103631188006"
     }
   ]
 }
@@ -1814,6 +1838,16 @@ response
       "uwOrderGrpNo": "OD260803103631160003",
       "opOrderGrpNo": "OP260803103631160003",
       "workflowCode": "WF00000007",
+      "success": true,
+      "code": null,
+      "error": null
+    },
+   {
+      "uwOrderNo": "SO260803103631188006",
+      "opOrderNo": "OP260803103631188006",
+      "uwOrderGrpNo": "OD260803103631160003",
+      "opOrderGrpNo": "OP260803103631160003",
+      "workflowCode": "WF00000009",
       "success": true,
       "code": null,
       "error": null
